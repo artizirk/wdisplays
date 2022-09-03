@@ -5,4 +5,4 @@ Name=wdisplays
 Comment=Wlroots display configuration
 Categories=GTK;Settings;DesktopSettings;
 Exec=wdisplays
-Icon=@app_id@
+Icon=wdisplays
