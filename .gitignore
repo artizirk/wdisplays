@@ -1,2 +1,12 @@
 /build/
 *.user
+
+# Direnv
+.direnv/
+
+# pre-commit-hooks
+.pre-commit-config.yaml
+
+# Nix
+result
+result-*
