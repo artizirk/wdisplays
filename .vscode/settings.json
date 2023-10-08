@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "wdisplays.h": "c",
+        "wayland-client-protocol.h": "c",
+        "path": "c"
+    }
+}

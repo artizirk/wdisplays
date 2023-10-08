@@ -28,6 +28,8 @@
 #include "wlr-screencopy-unstable-v1-client-protocol.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
+extern int store_config(struct wl_list *outputs);
+
 static void noop() {
   // This space is intentionally left blank
 }
@@ -52,6 +54,11 @@ static void config_handle_succeeded(void *data,
   struct wd_pending_config *pending = data;
   zwlr_output_configuration_v1_destroy(config);
   wd_ui_apply_done(pending->state, pending->outputs);
+  if (store_config(pending->outputs) == 0)
+  {
+    wd_ui_show_error(pending->state,
+      "Change was applied successfully and config was saved.");
+  }
   destroy_pending(pending);
 }
 
