@@ -1039,6 +1039,7 @@ static void activate(GtkApplication* app, gpointer user_data) {
   g_menu_append(main_menu, "_Show Screen Contents", "app.capture-screens");
   g_menu_append(main_menu, "_Overlay Screen Names", "app.show-overlay");
   gtk_menu_button_set_menu_model(GTK_MENU_BUTTON(state->menu_button), G_MENU_MODEL(main_menu));
+  gtk_menu_button_set_use_popover(GTK_MENU_BUTTON(state->menu_button), false);
 
   g_signal_connect(state->info_bar, "response", G_CALLBACK(info_response), state);
   /* first child of GtkInfoBar is always GtkRevealer */
