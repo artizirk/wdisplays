@@ -1,8 +1,8 @@
 /* SPDX-FileCopyrightText: 2020 Jason Francis <jason@cycles.network>
  * SPDX-License-Identifier: GPL-3.0-or-later */
 
-#ifndef WDISPLAY_GLVIEWPORT_H
-#define WDISPLAY_GLVIEWPORT_H
+#ifndef HDISPLAY_GLVIEWPORT_H
+#define HDISPLAY_GLVIEWPORT_H
 
 #include <gtk/gtk.h>
 

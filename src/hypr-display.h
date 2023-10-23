@@ -9,8 +9,8 @@
  * https://github.com/emersion/kanshi/blob/38d27474b686fcc8324cc5e454741a49577c0988/include/config.h
  */
 
-#ifndef WDISPLAY_WDISPLAY_H
-#define WDISPLAY_WDISPLAY_H
+#ifndef HDISPLAY_HDISPLAY_H
+#define HDISPLAY_HDISPLAY_H
 
 #include "config.h"
 

@@ -1,11 +1,11 @@
 /* SPDX-FileCopyrightText: 2020 Jason Francis <jason@cycles.network>
  * SPDX-License-Identifier: GPL-3.0-or-later */
 
-#ifndef WDISPLAY_CONFIG_H
-#define WDISPLAY_CONFIG_H
+#ifndef HDISPLAY_CONFIG_H
+#define HDISPLAY_CONFIG_H
 
-#define WDISPLAYS_APP_ID "@app_id@"
-#define WDISPLAYS_VERSION "@version@"
-#define WDISPLAYS_RESOURCE_PREFIX "@resource_prefix@"
+#define HDISPLAYS_APP_ID "@app_id@"
+#define HDISPLAYS_VERSION "@version@"
+#define HDISPLAYS_RESOURCE_PREFIX "@resource_prefix@"
 
 #endif

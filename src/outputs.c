@@ -21,7 +21,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "wdisplays.h"
+#include "hypr-display.h"
 
 #include "wlr-output-management-unstable-v1-client-protocol.h"
 #include "xdg-output-unstable-v1-client-protocol.h"

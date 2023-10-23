@@ -1,8 +1,8 @@
 /* SPDX-FileCopyrightText: 2020 Jason Francis <jason@cycles.network>
  * SPDX-License-Identifier: GPL-3.0-or-later */
 
-#ifndef WDISPLAY_HEADFORM_H
-#define WDISPLAY_HEADFORM_H
+#ifndef HDISPLAY_HEADFORM_H
+#define HDISPLAY_HEADFORM_H
 
 #include <gtk/gtk.h>
 

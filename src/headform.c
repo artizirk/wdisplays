@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later */
 
 #include "headform.h"
-#include "wdisplays.h"
+#include "hypr-display.h"
 
 typedef struct _WdHeadFormPrivate {
   GtkWidget *enabled;
@@ -118,7 +118,7 @@ static void wd_head_form_class_init(WdHeadFormClass *class) {
       G_TYPE_NONE, 1, G_TYPE_INT);
 
   gtk_widget_class_set_template_from_resource(widget_class,
-     WDISPLAYS_RESOURCE_PREFIX "/head.ui");
+     hypr-display_RESOURCE_PREFIX "/head.ui");
 
   gtk_widget_class_bind_template_callback(widget_class, enabled_toggled);
   gtk_widget_class_bind_template_callback(widget_class, mode_spin_changed);

@@ -4,7 +4,7 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkwayland.h>
 
-#include "wdisplays.h"
+#include "hypr-display.h"
 #include "glviewport.h"
 #include "headform.h"
 
@@ -927,7 +927,7 @@ static void activate(GtkApplication* app, gpointer user_data) {
 
   GtkCssProvider *css_provider = gtk_css_provider_new();
   gtk_css_provider_load_from_resource(css_provider,
-      WDISPLAYS_RESOURCE_PREFIX "/style.css");
+      hypr-display_RESOURCE_PREFIX "/style.css");
   gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css_provider),
       GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
@@ -936,7 +936,7 @@ static void activate(GtkApplication* app, gpointer user_data) {
   state->move_cursor = gdk_cursor_new_from_name(gdk_display, "move");
 
   GtkBuilder *builder = gtk_builder_new_from_resource(
-      WDISPLAYS_RESOURCE_PREFIX "/wdisplays.ui");
+      hypr-display_RESOURCE_PREFIX "/hypr-display.ui");
   GtkWidget *window = GTK_WIDGET(gtk_builder_get_object(builder, "heads_window"));
   state->main_box = GTK_WIDGET(gtk_builder_get_object(builder, "main_box"));
   state->header_stack = GTK_WIDGET(gtk_builder_get_object(builder, "header_stack"));
@@ -1084,7 +1084,7 @@ static void activate(GtkApplication* app, gpointer user_data) {
 
 int main(int argc, char *argv[]) {
   g_setenv("GDK_GL", "gles", FALSE);
-  GtkApplication *app = gtk_application_new(WDISPLAYS_APP_ID, G_APPLICATION_FLAGS_NONE);
+  GtkApplication *app = gtk_application_new(hypr-display_APP_ID, G_APPLICATION_FLAGS_NONE);
   g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
   int status = g_application_run(G_APPLICATION(app), argc, argv);
   g_object_unref(app);

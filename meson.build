@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2020 Jason Francis <jason@cycles.network>
 # SPDX-License-Identifier: CC0-1.0
 
-project('network.cycles.wdisplays', 'c',
+project('network.cycles.hypr-display', 'c',
   license: 'GPL-3.0-or-later',
   version: '1.1.1'
 )

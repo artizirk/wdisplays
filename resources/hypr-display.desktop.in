@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Categories=GTK;Settings;DesktopSettings;
-Exec=wdisplays
+Exec=hypr-display
 Icon=@app_id@
 
 Name=Displays

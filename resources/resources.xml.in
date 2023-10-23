@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
   <gresource prefix="@resource_prefix@">
-    <file compressed="true" preprocess="xml-stripblanks">wdisplays.ui</file>
+    <file compressed="true" preprocess="xml-stripblanks">hypr-display.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">head.ui</file>
     <file compressed="true">style.css</file>
   </gresource>

@@ -1,4 +1,4 @@
-#include "wdisplays.h"
+#include "hypr-display.h"
 #include <ctype.h>
 #include <regex.h>
 #include <stdlib.h>
@@ -25,16 +25,16 @@ char *get_config_file_path() {
     char defaultPath[256]; // 假设文件路径不超过256个字符
     snprintf(defaultPath, sizeof(defaultPath), "%s/.config/kanshi/config", homeDir);
 
-    // 尝试打开并读取 $HOME/.config/wdisplays/config 文件
-    char wdisplaysPath[256];
-    snprintf(wdisplaysPath, sizeof(wdisplaysPath), "%s/.config/wdisplays/config", homeDir);
+    // 尝试打开并读取 $HOME/.config/hypr-display/config 文件
+    char hypr-displayPath[256];
+    snprintf(hypr-displayPath, sizeof(hypr-displayPath), "%s/.config/hypr-display/config", homeDir);
 
-    FILE *wdisplaysFile = fopen(wdisplaysPath, "r");
-    if (wdisplaysFile != NULL) {
+    FILE *hypr-displayFile = fopen(hypr-displayPath, "r");
+    if (hypr-displayFile != NULL) {
         char line[256]; // 假设行的长度不超过256个字符
 
         // 逐行读取文件，查找 "store PATH" 配置项
-        while (fgets(line, sizeof(line), wdisplaysFile) != NULL) {
+        while (fgets(line, sizeof(line), hypr-displayFile) != NULL) {
             if (strstr(line, "store_path") != NULL) {
                 // 找到 "store PATH" 配置项，提取路径
                 char *pathStart = strchr(line, '=');
@@ -43,14 +43,14 @@ char *get_config_file_path() {
                     char *pathEnd = strchr(pathStart, '\n');
                     if (pathEnd != NULL) {
                         *pathEnd = '\0'; // 去除换行符
-                        fclose(wdisplaysFile);
+                        fclose(hypr-displayFile);
                         return strdup(pathStart); // 返回提取的路径
                     }
                 }
             }
         }
 
-        fclose(wdisplaysFile);
+        fclose(hypr-displayFile);
     }
 
     // 如果没有找到 "store PATH" 配置项，则返回默认路径
