@@ -10,9 +10,12 @@ The goal of this project is to allow precise adjustment of display settings in
 kiosks, digital signage, and other elaborate multi-monitor setups.
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 ![Screenshot](hypr-display.png)
 =======
+=======
+>>>>>>> parent of f0bfe17 (Merge branch 'pr/11' into Wdisplay_PRs)
 ![Screenshot](wdisplays.png)
 >>>>>>> parent of 3b923ae (Merge pull request #1 from kRHYME7/Wdisplay_Fx)
 
