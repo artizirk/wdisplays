@@ -195,7 +195,6 @@ static void wd_head_form_init(WdHeadForm *form) {
   g_menu_append(rotate_menu, "Rotate 180°", "head.rotate(180)");
   g_menu_append(rotate_menu, "Rotate 270°", "head.rotate(270)");
   gtk_menu_button_set_menu_model(GTK_MENU_BUTTON(priv->rotate_button), G_MENU_MODEL(rotate_menu));
-  gtk_menu_button_set_use_popover(GTK_MENU_BUTTON(priv->rotate_button), false);
 
   static const GVariantType * const mode_types[] = {
     G_VARIANT_TYPE_INT32,
@@ -256,7 +255,6 @@ void wd_head_form_update(WdHeadForm *form, const struct wd_head *head,
       g_menu_append_item(mode_menu, item);
     }
     gtk_menu_button_set_menu_model(GTK_MENU_BUTTON(priv->mode_button), G_MENU_MODEL(mode_menu));
-    gtk_menu_button_set_use_popover(GTK_MENU_BUTTON(priv->mode_button), false);
     // Mode entries
     int w = head->custom_mode.width;
     int h = head->custom_mode.height;

@@ -20,7 +20,6 @@ executable(
     'outputs.c',
     'overlay.c',
     'render.c',
-    'store.c',
     resources,
   ],
   dependencies : [

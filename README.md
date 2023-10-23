@@ -9,8 +9,12 @@ Compositors that are known to support the protocol are [Sway] and [Wayfire].
 The goal of this project is to allow precise adjustment of display settings in
 kiosks, digital signage, and other elaborate multi-monitor setups.
 
+<<<<<<< HEAD
 
 ![Screenshot](hypr-display.png)
+=======
+![Screenshot](wdisplays.png)
+>>>>>>> parent of 3b923ae (Merge pull request #1 from kRHYME7/Wdisplay_Fx)
 
 # Installation
 
@@ -71,16 +75,8 @@ It's intended to be the Wayland equivalent of an xrandr GUI, like [ARandR].
 Sway, like i3, doesn't save any settings unless you put them in the config
 file. See man `sway-output`. If you want to have multiple configurations
 depending on the monitors connected, you'll need to use an external program
-like [kanshi] or [way-displays].
-
-When you apply a new change, the setting will be defaultly added to $HOME/.config/kanshi/config,
-if there is already a profile for the same monitors combination, the change will be applied on
-existing one.
-you can add kanshi autostart to your sway config:
-```
-exec_always pkill kanshi
-exec_always kanshi
-```
+like [kanshi] or [way-displays]. Integration with that and other external
+daemons is planned.
 
 ### How do I add support to my compositor?
 
