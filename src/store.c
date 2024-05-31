@@ -5,6 +5,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <wayland-client-protocol.h>
+#include <limits.h>
+#include <stdbool.h>
 #define MAX_NAME_LENGTH 256
 #define MAX_MONITORS_NUM 10
 struct wd_head_config;
@@ -13,47 +15,50 @@ struct profile_line {
   int end;
 };
 char *get_config_file_path() {
-    // 获取用户的主目录路径
-    const char *homeDir = getenv("HOME");
-
-    if (homeDir == NULL) {
-        perror("Cannot load $HOME env.");
-        return NULL;
+    char defaultPath[PATH_MAX]; // platform based marco PATH_MAX    
+    char wdisplaysPath[PATH_MAX];
+    // if $XDG_CONFIG_HOME is set, use it
+    {
+      const char *configDir = getenv("XDG_CONFIG_HOME");
+      char defaultConfigDir[PATH_MAX];
+      if (configDir == NULL) {
+        const char *homeDir = getenv("HOME");
+        if (homeDir == NULL) {
+          perror("Cannot find home directory");
+          return NULL;
+        }
+        snprintf(defaultConfigDir, sizeof(defaultConfigDir), "%s/.config", homeDir);
+      } else {
+        snprintf(defaultConfigDir, sizeof(defaultConfigDir), "%s", configDir);
+      }
+      snprintf(defaultPath, sizeof(defaultPath), "%s/kanshi/config", defaultConfigDir);
+      snprintf(wdisplaysPath, sizeof(wdisplaysPath), "%s/wdisplays/config", defaultConfigDir);
     }
-
-    // 构建默认的配置文件路径
-    char defaultPath[256]; // 假设文件路径不超过256个字符
-    snprintf(defaultPath, sizeof(defaultPath), "%s/.config/kanshi/config", homeDir);
-
-    // 尝试打开并读取 $HOME/.config/wdisplays/config 文件
-    char wdisplaysPath[256];
-    snprintf(wdisplaysPath, sizeof(wdisplaysPath), "%s/.config/wdisplays/config", homeDir);
 
     FILE *wdisplaysFile = fopen(wdisplaysPath, "r");
     if (wdisplaysFile != NULL) {
-        char line[256]; // 假设行的长度不超过256个字符
+        char line[LINE_MAX]; // LINE_MAX is a platform based marco
 
-        // 逐行读取文件，查找 "store PATH" 配置项
+        // try to match "store_path" term
         while (fgets(line, sizeof(line), wdisplaysFile) != NULL) {
             if (strstr(line, "store_path") != NULL) {
-                // 找到 "store PATH" 配置项，提取路径
+                // if found, extract path
                 char *pathStart = strchr(line, '=');
                 if (pathStart != NULL) {
-                    pathStart++; // 跳过等号
+                    pathStart++; // skip '='
                     char *pathEnd = strchr(pathStart, '\n');
                     if (pathEnd != NULL) {
-                        *pathEnd = '\0'; // 去除换行符
+                        *pathEnd = '\0'; // replace '\n' with '\0'
                         fclose(wdisplaysFile);
-                        return strdup(pathStart); // 返回提取的路径
+                        return strdup(pathStart); // return path
                     }
                 }
             }
         }
-
         fclose(wdisplaysFile);
     }
 
-    // 如果没有找到 "store PATH" 配置项，则返回默认路径
+    // if store_path is not found in wdisplays config file, return default path
     return strdup(defaultPath);
 }
 
@@ -61,73 +66,72 @@ struct profile_line match(char **descriptions, int num, char *filename) {
   struct profile_line matched_profile;
   matched_profile.start = -1;
   matched_profile.end = -1;
+  // -1 means not found
   FILE *configFile = fopen(filename, "r");
   if (configFile == NULL) {
     perror("File open failed.");
     return matched_profile;
   }
-  // 缓冲区用于存储文件行
-  char buffer[1024];
+  // buffer to store each line
+  char buffer[LINE_MAX];
   char profileName[MAX_NAME_LENGTH];
-  int profileStartLine = 0; // 记录匹配到的profile的起始行号
-  int profileEndLine = 0;   // 记录匹配到的profile的结束行号
+  int profileStartLine = 0; // mark the start line of matched profile
+  int profileEndLine = 0;   // mark the end line of matched profile
 
-  int lineCount = 0; // 用于记录当前行号
+  int lineCount = 0; // current line number
 
   while (fgets(buffer, sizeof(buffer), configFile) != NULL) {
-    lineCount++; // 增加行号
+    lineCount++;
 
-    // 检查是否包含 "profile" 关键字
+    // check if "profile" keyword is in the line
     if (strstr(buffer, "profile") != NULL) {
-      // 从当前行提取 profile 名称
+      // extract profile name
       sscanf(buffer, "profile %s {", profileName);
 
-      // 标记当前 profile 是否匹配
-      int profileMatched = 0;
+      // the number of matched outputs
+      uint32_t profileMatchedNum = 0;
 
-      // 记录匹配到的profile的起始行号
+      // record the start line of the profile
       profileStartLine = lineCount;
 
-      // 遍历 profile 中的输出行
       while (fgets(buffer, sizeof(buffer), configFile) != NULL) {
-        lineCount++; // 增加行号
+        lineCount++;
 
-        // 检查是否到达当前 profile 的末尾
+        // check if the profile ends
         if (buffer[0] == '}') {
-          // 记录匹配到的profile的结束行号
           profileEndLine = lineCount;
-          break; // 退出当前 profile
+          break;
         }
         char outputName[MAX_NAME_LENGTH];
         // 从当前行提取输出名称
         char *trimmedBuffer = buffer;
         while (isspace(*trimmedBuffer)) {
-          trimmedBuffer++;
+          trimmedBuffer++; // skip leading spaces
         }
-        sscanf(trimmedBuffer, "output \"%99[^\"]\"", outputName);
+        sscanf(trimmedBuffer, "output \"%99[^\"]\"", outputName); // extract output name
 
-        // 检查是否匹配
-        int matched = 0;
+        // check if the output name is in the descriptions
+        bool matched = false;
         for (int i = 0; descriptions[i] != NULL; i++) {
           if (strcmp(outputName, descriptions[i]) == 0) {
-            matched = 1;
-            profileMatched++;
+            matched = true;
+            profileMatchedNum++;
             break;
           }
         }
 
         if (!matched) {
-          // 如果有任何一个输出不匹配，则标记为不匹配
-          profileMatched = 0;
+          // if any output is not matched, break
+          profileMatchedNum = 0;
           break;
         }
       }
 
-      if (profileMatched == num) {
-        printf("Matched profile：%s\n", profileName);
-        printf("Start line：%d\n", profileStartLine);
+      if (profileMatchedNum == num) {
+        printf("Matched profile:%s\n", profileName);
+        printf("Start line:%d\n", profileStartLine);
         matched_profile.start = profileStartLine;
-        printf("End line：%d\n", profileEndLine);
+        printf("End line:%d\n", profileEndLine);
         matched_profile.end = profileEndLine;
 
         fclose(configFile);
@@ -136,16 +140,14 @@ struct profile_line match(char **descriptions, int num, char *filename) {
     }
   }
 
-  // 关闭配置文件
   fclose(configFile);
-
-  printf("Cannot find exsiting profile to match\n");
+  printf("Cannot find existing profile to match\n");
   return matched_profile;
 }
 
 int store_config(struct wl_list *outputs) {
   char *file_name = get_config_file_path();
-  char tmp_file_name[256];
+  char tmp_file_name[PATH_MAX];
   sprintf(tmp_file_name,"%s.tmp",file_name);
 
   char *descriptions[MAX_MONITORS_NUM];
@@ -194,7 +196,7 @@ int store_config(struct wl_list *outputs) {
 
     if (description_index < MAX_MONITORS_NUM) {
       descriptions[description_index] = strdup(head->description);
-
+      // write output config in given format
       sprintf(
           outputConfigs[description_index],
           "output \"%s\" position %d,%d mode %dx%d@%.4f scale %.2f transform %s",
@@ -202,7 +204,8 @@ int store_config(struct wl_list *outputs) {
           output->height, output->refresh / 1.0e3, output->scale, trans_str);
       description_index++;
     } else {
-      printf("Too many monitor!");
+      free(trans_str);
+      printf("Too many monitor! 10 is the");
       return 1;
     }
 
@@ -215,9 +218,11 @@ int store_config(struct wl_list *outputs) {
   matched_profile = match(descriptions, num_of_monitors, file_name);
 
   if (matched_profile.start == -1) {
+    // append new profile
     FILE *file = fopen(file_name, "a");
     if (file == NULL) {
       perror("File open failed.");
+      free(file_name);
       return 1;
     }
     fprintf(file, "\nprofile {\n");
@@ -228,19 +233,21 @@ int store_config(struct wl_list *outputs) {
     fprintf(file, "}");
     fclose(file);
   } else if (matched_profile.start < matched_profile.end) {
-    // rewrite correspondece lines
+    // rewrite correspondence lines
     FILE *file = fopen(file_name, "r");
     if (file == NULL) {
       perror("File open failed.");
+      free(file_name);
       return 1;
     }
     FILE *tmp = fopen(tmp_file_name, "w");
     if (tmp == NULL) {
       perror("Tmp file cannot be created.");
       fclose(file);
+      free(file_name);
       return 1;
     }
-    char _buffer[1024];
+    char _buffer[LINE_MAX];
     int _line = 0;
     int _i_output = 0;
     while (fgets(_buffer, sizeof(_buffer), file) != NULL) {
@@ -265,6 +272,7 @@ int store_config(struct wl_list *outputs) {
     
     remove(file_name);
     rename(tmp_file_name, file_name);
+    free(file_name);
   }
 
   return 0;

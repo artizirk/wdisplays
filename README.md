@@ -78,8 +78,8 @@ if there is already a profile for the same monitors combination, the change will
 existing one.
 you can add kanshi autostart to your sway config:
 ```
-exec_always pkill kanshi
-exec_always kanshi
+exec kanshi
+exec_always kanshictl reload
 ```
 
 ### How do I add support to my compositor?
