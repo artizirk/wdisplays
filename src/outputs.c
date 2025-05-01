@@ -28,10 +28,6 @@
 #include "wlr-screencopy-unstable-v1-client-protocol.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
-static void noop() {
-  // This space is intentionally left blank
-}
-
 struct wd_pending_config {
   struct wd_state *state;
   struct wl_list *outputs;
@@ -526,7 +522,6 @@ static void output_manager_handle_done(void *data,
 static const struct zwlr_output_manager_v1_listener output_manager_listener = {
   .head = output_manager_handle_head,
   .done = output_manager_handle_done,
-  .finished = noop,
 };
 static void registry_handle_global(void *data, struct wl_registry *registry,
     uint32_t name, const char *interface, uint32_t version) {
@@ -553,7 +548,6 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
 
 static const struct wl_registry_listener registry_listener = {
   .global = registry_handle_global,
-  .global_remove = noop,
 };
 
 void wd_add_output_management_listener(struct wd_state *state, struct
@@ -603,10 +597,7 @@ static void output_name(void *data, struct zxdg_output_v1 *zxdg_output_v1,
 
 static const struct zxdg_output_v1_listener output_listener = {
   .logical_position = output_logical_position,
-  .logical_size = noop,
-  .done = noop,
   .name = output_name,
-  .description = noop
 };
 
 void wd_add_output(struct wd_state *state, struct wl_output *wl_output,
