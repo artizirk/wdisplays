@@ -28,10 +28,6 @@
 #include "wlr-screencopy-unstable-v1-client-protocol.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
-static void noop() {
-  // This space is intentionally left blank
-}
-
 struct wd_pending_config {
   struct wd_state *state;
   struct wl_list *outputs;
@@ -523,10 +519,13 @@ static void output_manager_handle_done(void *data,
   wd_ui_reset_heads(state);
 }
 
+static void noop_output_manager_finished(void *data, struct zwlr_output_manager_v1 *zwlr_output_manager_v1) {
+}
+
 static const struct zwlr_output_manager_v1_listener output_manager_listener = {
   .head = output_manager_handle_head,
   .done = output_manager_handle_done,
-  .finished = noop,
+  .finished = noop_output_manager_finished,
 };
 static void registry_handle_global(void *data, struct wl_registry *registry,
     uint32_t name, const char *interface, uint32_t version) {
@@ -551,9 +550,12 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
   }
 }
 
+static void noop_registry_global_remove(void *data, struct wl_registry *wl_registry, uint32_t name) {
+}
+
 static const struct wl_registry_listener registry_listener = {
   .global = registry_handle_global,
-  .global_remove = noop,
+  .global_remove = noop_registry_global_remove,
 };
 
 void wd_add_output_management_listener(struct wd_state *state, struct
@@ -601,12 +603,19 @@ static void output_name(void *data, struct zxdg_output_v1 *zxdg_output_v1,
   }
 }
 
+static void noop_output_logical_size(void *data, struct zxdg_output_v1 *zxdg_output_v1, int32_t width, int32_t height) {
+}
+static void noop_output_done(void *data, struct zxdg_output_v1 *zxdg_output_v1) {
+}
+static void noop_output_description(void *data, struct zxdg_output_v1 *zxdg_output_v1, const char *description) {
+}
+
 static const struct zxdg_output_v1_listener output_listener = {
   .logical_position = output_logical_position,
-  .logical_size = noop,
-  .done = noop,
+  .logical_size = noop_output_logical_size,
+  .done = noop_output_done,
   .name = output_name,
-  .description = noop
+  .description = noop_output_description
 };
 
 void wd_add_output(struct wd_state *state, struct wl_output *wl_output,
