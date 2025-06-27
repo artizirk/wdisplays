@@ -204,10 +204,10 @@ int wd_store_config(struct wl_list *outputs) {
     };
 
     if (description_index < HEADS_MAX) {
-      descriptions[description_index] = strdup(head->description);
+      descriptions[description_index] = strdup(head->name);
       // write output config in given format
-      sprintf(outputConfigs[description_index], "output \"%s\" position %d,%d mode %dx%d@%.4f scale %.2f transform %s",
-              head->description, output->x, output->y, output->width, output->height, output->refresh / 1.0e3, output->scale,
+      sprintf(outputConfigs[description_index], "output %s position %d,%d mode %dx%d@%.4f scale %.2f transform %s",
+              head->name, output->x, output->y, output->width, output->height, output->refresh / 1.0e3, output->scale,
               trans_str);
       description_index++;
     } else {
