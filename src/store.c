@@ -142,17 +142,43 @@ struct profile_line match(char **descriptions, int num, const char *filename) {
           profileEndLine = lineCount;
           if (profileMatchedNum == num) ps = Found;
         } else {
-          char *on_start = strstr(buffer, "output");
-          on_start       = strchr(on_start, '"');
-          on_start++;
-          char *on_end     = strchr(on_start, '"');
-          char *outputName = strndup(on_start, on_end - on_start);
+          char outputName[MAX_NAME_LENGTH];
+          char *trimmedBuffer = buffer;
+          while (isspace(*trimmedBuffer)) {
+            trimmedBuffer++; // skip leading spaces
+          }
+          char tempName[MAX_NAME_LENGTH];
+          int matched_scan = 0;
+
+          // Try quoted format first (legacy): output "Long Description (DP-3)"
+          if (sscanf(trimmedBuffer, "output \"%255[^\"]\"", tempName) == 1) {
+            // Extract output name from parentheses if present: (DP-3) -> DP-3
+            char *paren_start = strrchr(tempName, '(');
+            char *paren_end = strrchr(tempName, ')');
+            if (paren_start && paren_end && paren_end > paren_start) {
+              size_t len = paren_end - paren_start - 1;
+              strncpy(outputName, paren_start + 1, len);
+              outputName[len] = '\0';
+              matched_scan = 1;
+            }
+          } else if (sscanf(trimmedBuffer, "output %99s", outputName) == 1) {
+            // Try unquoted format: output DP-3
+            matched_scan = 1;
+          }
+          
+          if (matched_scan != 1) continue; // Skip unparseable lines
+
           // check if the output name is in the descriptions
-          int i            = 0;
-          while (descriptions[i] != NULL && strcmp(outputName, descriptions[i])) i++;
-          if (descriptions[i] != NULL) {
-            profileMatchedNum++;
-          } else {
+          bool matched = false;
+          for (int i = 0; descriptions[i] != NULL; i++) {
+            if (strcmp(outputName, descriptions[i]) == 0) {
+              matched = true;
+              profileMatchedNum++;
+              break;
+            }
+          }
+
+          if (!matched) {
             // if any output is not matched, break
             profileMatchedNum = 0;
             ps                = Looking_for_profile;
