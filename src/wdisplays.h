@@ -341,4 +341,19 @@ void wd_redraw_overlay(struct wd_output *output);
  */
 void wd_destroy_overlay(struct wd_output *output);
 
+/*
+ * Locate kanshi config
+ */
+char *wd_get_config_file_path();
+
+/*
+ * Returns kanshi config path
+ */
+char *wd_get_kanshi_config();
+
+/*
+ * Updates kanshi config
+ */
+int wd_store_config(struct wl_list *outputs);
+
 #endif
