@@ -93,10 +93,8 @@ void wd_apply_state(struct wd_state *state, struct wl_list *new_outputs,
 
   zwlr_output_configuration_v1_add_listener(config, &config_listener, pending);
 
-  ssize_t i = -1;
   struct wd_head_config *output;
   wl_list_for_each(output, new_outputs, link) {
-    i++;
     struct wd_head *head = output->head;
 
     if (!output->enabled && output->enabled != head->enabled) {
