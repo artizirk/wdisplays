@@ -3,13 +3,15 @@
 
 project('network.cycles.wdisplays', 'c',
   license: 'GPL-3.0-or-later',
-  version: '1.1.3'
+  version: '1.1.3',
+  meson_version:'>=1.1'
 )
 
 conf = configuration_data({
   'app_id': meson.project_name(),
   'version': meson.project_version(),
   'resource_prefix': '/' / '/'.join(meson.project_name().split('.')),
+  'WITH_KANSHI': get_option('kanshi').allowed(),
 })
 
 subdir('protocol')

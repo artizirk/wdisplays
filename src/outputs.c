@@ -54,11 +54,13 @@ static void config_handle_succeeded(void *data,
   struct wd_pending_config *pending = data;
   zwlr_output_configuration_v1_destroy(config);
   wd_ui_apply_done(pending->state, pending->outputs);
-  if (store_config(pending->outputs) == 0)
+#ifdef WITH_KANSHI
+  if (wd_store_config(pending->outputs) == 0)
   {
     wd_ui_show_error(pending->state,
       "Change was applied successfully and config was saved.");
   }
+#endif
   destroy_pending(pending);
 }
 

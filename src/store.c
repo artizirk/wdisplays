@@ -5,16 +5,11 @@
 #include "wdisplays.h"
 #include <ctype.h>
 #include <limits.h>
-#include <regex.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <wayland-client-protocol.h>
 
 #define MAX_NAME_LENGTH 256
-
-struct wd_head_config;
 
 struct profile_line {
   int start;
@@ -23,7 +18,7 @@ struct profile_line {
 
 typedef enum { Looking_for_profile, Looking_for_outputs, Found } parser_states;
 
-char *wd_get_config_file_path() {
+char *wd_get_kanshi_config_file_path() {
   char kanshiConfigPath[PATH_MAX];
   char wdisplaysPath[PATH_MAX];
   char defaultConfigDir[PATH_MAX];
@@ -75,8 +70,10 @@ char *wd_get_config_file_path() {
     }     // reached end of file
     fclose(wdisplaysFile);
   } else { // can't open config file
+    #ifdef VERBOSE
     dprintf(2, "%s:%i:%s(): Can't open %s : ", __FILE__, __LINE__, __func__, wdisplaysPath);
     perror(NULL);
+    #endif
   }
 
   // look for WDISPLAYS_KANSHI_CONFIG
@@ -107,7 +104,9 @@ struct profile_line match(char **descriptions, int num, const char *filename) {
   }
   // buffer to store each line
   char buffer[LINE_MAX];
+#ifdef VERBOSE
   char *profileName;
+#endif
   int profileStartLine = 0; // mark the start line of matched profile
   int profileEndLine   = 0; // mark the end line of matched profile
 
@@ -123,12 +122,14 @@ struct profile_line match(char **descriptions, int num, const char *filename) {
         // check if "profile" keyword is in the line and remember its position
         char *pstart = strstr(buffer, "profile ");
         if (pstart != NULL) {
+          #ifdef VERBOSE
           pstart     += 7;
           char *pend  = strchr(pstart, '{'); // find the end of the profile name
           while (isspace(*pend)) pend--;
           size_t pnsize    = pend - pstart;
           // use strndup to extract it without being size constrained
           profileName      = strndup(pstart, pnsize);
+          #endif
           // record the start line of the profile
           profileStartLine = lineCount;
           ps               = Looking_for_outputs;
@@ -162,8 +163,11 @@ struct profile_line match(char **descriptions, int num, const char *filename) {
   }
   fclose(configFile);
   if (ps == Found) {
+
+    #ifdef VERBOSE
     printf("Matched profile:%s\n", profileName);
     printf("Start line:%d\nEnd line:%d\n", profileStartLine, profileEndLine);
+    #endif
     matched_profile.start = profileStartLine;
     matched_profile.end   = profileEndLine;
   } else dprintf(2, "%s:%i:%s(): Cannot find existing profile to match\n", __FILE__, __LINE__, __func__);
@@ -171,7 +175,7 @@ struct profile_line match(char **descriptions, int num, const char *filename) {
 }
 
 int wd_store_config(struct wl_list *outputs) {
-  const char *file_name = wd_get_kanshi_config();
+  const char *file_name = wd_get_kanshi_config_file_path();
   char tmp_file_name[PATH_MAX];
   sprintf(tmp_file_name, "%s.tmp", file_name);
 
@@ -252,7 +256,7 @@ int wd_store_config(struct wl_list *outputs) {
     while (fgets(_buffer, sizeof(_buffer), file) != NULL) {
       if (_line >= matched_profile.start && _line < matched_profile.end - 1) {
         if (_i_output >= num_of_monitors) {
-          perror("Null pointer");
+          dprintf(2, "%s:%i:%s(): too many outputs : %i", __FILE__, __LINE__, __func__, _i_output);
           fclose(tmp);
           fclose(file);
           return 1;
