@@ -5,7 +5,7 @@ wayland_scanner = find_program('wayland-scanner')
 wayland_client = dependency('wayland-client')
 wayland_protos = dependency('wayland-protocols', version: '>=1.17')
 
-wl_protocol_dir = wayland_protos.get_pkgconfig_variable('pkgdatadir')
+wl_protocol_dir = wayland_protos.get_variable('pkgdatadir')
 
 wayland_scanner_code = generator(
   wayland_scanner,
