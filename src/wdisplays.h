@@ -341,6 +341,9 @@ void wd_redraw_overlay(struct wd_output *output);
  */
 void wd_destroy_overlay(struct wd_output *output);
 
+// SPDX-SnippetBegin
+// SPDX-License-Identifier: MIT
+// SPDX-SnippetCopyrightText: 2024-2025 Jason André Charles Gantner
 /*
  * Locate kanshi config
  */
@@ -355,5 +358,5 @@ char *wd_get_kanshi_config();
  * Updates kanshi config
  */
 int wd_store_config(struct wl_list *outputs);
-
+// SPDX-SnippetEnd
 #endif
