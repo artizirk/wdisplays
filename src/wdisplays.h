@@ -14,7 +14,7 @@
 
 #include "config.h"
 
-#define HEADS_MAX 64
+#define HEADS_MAX   64
 #define HOVER_USECS (100 * 1000)
 
 #include <stdbool.h>
@@ -110,10 +110,12 @@ struct wd_head {
 
   bool enabled;
   struct wd_mode *mode;
+
   struct {
     int32_t width, height;
     int32_t refresh;
   } custom_mode;
+
   int32_t x, y;
   enum wl_output_transform transform;
   double scale;
@@ -223,7 +225,6 @@ struct wd_state {
   struct wd_gl_data *gl_data;
   struct wd_render_data render;
 };
-
 
 /*
  * Creates the application state structure.
@@ -339,4 +340,22 @@ void wd_redraw_overlay(struct wd_output *output);
  */
 void wd_destroy_overlay(struct wd_output *output);
 
+// SPDX-SnippetBegin
+// SPDX-License-Identifier: MIT
+// SPDX-SnippetCopyrightText: 2024-2025 Jason André Charles Gantner
+/*
+ * Locate kanshi config
+ */
+char *wd_get_config_file_path();
+
+/*
+ * Returns kanshi config path
+ */
+char *wd_get_kanshi_config();
+
+/*
+ * Updates kanshi config
+ */
+int wd_store_config(struct wl_list *outputs);
+// SPDX-SnippetEnd
 #endif

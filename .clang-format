@@ -1,4 +1,59 @@
 ﻿---
-IndentWidth: '2'
-
-...
+IndentWidth: 2
+# SPDX-SnippetBegin
+# SPDX-License-Identifier: CC0-1.0
+# SPDX-SnippetCopyrightText: NONE
+Language: Cpp
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+  AlignCompound: true
+  PadOperators: true
+AlignConsecutiveBitFields: Consecutive
+AlignConsecutiveMacros: Consecutive
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+  # AlignCaseArrows: true
+  AlignCaseColons: true
+AlignOperands: Align
+AlignTrailingComments: Always
+AllowShortBlocksOnASingleLine: Always
+AllowShortCaseLabelsOnASingleLine: true
+# AllowShortCaseExpressionOnASingleLine: true
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: true
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeBraces: Attach
+BreakBeforeConceptDeclarations: Never
+BreakBeforeBinaryOperators: true
+BreakBeforeTernaryOperators: true
+ColumnLimit: 128
+IndentCaseBlocks: false
+IndentCaseLabels: true
+IndentPPDirectives: AfterHash
+InsertBraces: false
+InsertNewlineAtEOF: true
+LineEnding: LF
+PointerAlignment: Right
+QualifierAlignment: Left
+ReferenceAlignment: Right
+ReflowComments: true
+RemoveBracesLLVM: true
+SeparateDefinitionBlocks: Always
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeParens: ControlStatementsExceptControlMacros
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: false
+SpacesInAngles: Never
+SpacesInLineCommentPrefix:
+  Minimum: 1
+  Maximum: 1
+SpacesInParens: Never
+UseTab: Never
+# SPDX-SnippetEnd

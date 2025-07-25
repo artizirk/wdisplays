@@ -6,6 +6,14 @@ This project tries to adhere to [Semantic Versioning][2].
 
 ## [Unreleased]
 
+### Added
+
+Support for saving kanshi config file
+
+### Changed
+
+### Fixed
+
 ## [1.1.1] - 2023-07-01
 
 ### Added
