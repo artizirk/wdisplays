@@ -3,7 +3,7 @@
 
 project('network.cycles.wdisplays', 'c',
   license: 'GPL-3.0-or-later',
-  version: '1.1.2'
+  version: '1.1.3'
 )
 
 conf = configuration_data({
