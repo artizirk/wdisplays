@@ -6,6 +6,12 @@ This project tries to adhere to [Semantic Versioning][2].
 
 ## [Unreleased]
 
+## [1.1.2] - 2025-07-25
+
+### Fixed
+
+Fixed compilation error with new GCC (ceamac)
+
 ## [1.1.1] - 2023-07-01
 
 ### Added
@@ -52,7 +58,8 @@ Update application ID and readme (Jason Francis)
 [1]: https://keepachangelog.com/en/1.0.0/
 [2]: https://semver.org/spec/v2.0.0.html
 
-[Unreleased]: https://github.com/artizirk/wdisplays/compare/1.1.1...HEAD
+[Unreleased]: https://github.com/artizirk/wdisplays/compare/1.1.2...HEAD
+[1.1.2]:  https://github.com/artizirk/wdisplays/compare/1.1.1...1.1.2
 [1.1.1]:  https://github.com/artizirk/wdisplays/compare/1.1...1.1.1
 [1.1]: https://github.com/artizirk/wdisplays/compare/1.0...1.1
 [1.0]: https://github.com/artizirk/wdisplays/releases/tag/1.0
