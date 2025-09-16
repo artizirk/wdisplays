@@ -8,6 +8,10 @@
 #include "glviewport.h"
 #include "headform.h"
 
+#if !GLIB_CHECK_VERSION(2, 74, 0)
+#define G_APPLICATION_DEFAULT_FLAGS G_APPLICATION_FLAGS_NONE
+#endif
+
 __attribute__((noreturn)) void wd_fatal_error(int status, const char *message) {
   GtkWindow *parent = gtk_application_get_active_window(GTK_APPLICATION(g_application_get_default()));
   GtkWidget *dialog = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK, "%s", message);
