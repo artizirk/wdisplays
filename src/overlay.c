@@ -171,6 +171,7 @@ void wd_create_overlay(struct wd_output *output) {
   output->overlay_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_decorated(GTK_WINDOW(output->overlay_window), FALSE);
   gtk_window_set_resizable(GTK_WINDOW(output->overlay_window), FALSE);
+  gtk_widget_set_app_paintable(output->overlay_window, TRUE);
   gtk_widget_add_events(output->overlay_window, GDK_STRUCTURE_MASK);
 
   g_signal_connect(output->overlay_window, "realize",
