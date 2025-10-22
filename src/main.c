@@ -122,12 +122,12 @@ static void update_canvas_size(struct wd_state *state) {
       wd_head_form_get_dimensions(form, &dim);
       int h = dim.h;
       int w = dim.w;
-      int x2 = dim.x + w;
-      int y2 = dim.x + h;
       if (dim.scale > 0.) {
         w /= dim.scale;
         h /= dim.scale;
       }
+      int x2 = dim.x + w;
+      int y2 = dim.y + h;
       xmin = MIN(xmin, dim.x);
       xmax = MAX(xmax, x2);
       ymin = MIN(ymin, dim.y);
