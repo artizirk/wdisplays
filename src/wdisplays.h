@@ -117,6 +117,7 @@ struct wd_head {
   int32_t x, y;
   enum wl_output_transform transform;
   double scale;
+  int32_t logical_width, logical_height;
 };
 
 struct wd_gl_data;

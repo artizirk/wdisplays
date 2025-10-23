@@ -251,6 +251,28 @@ static inline void color_to_float_array(GtkStyleContext *ctx,
 
 #define SWAP(_type, _a, _b) { _type _tmp = (_a); (_a) = (_b); (_b) = _tmp; }
 
+static void get_logical_size(WdHeadForm *form, const WdHeadDimensions *dim,
+    double *w, double *h) {
+  const struct wd_head *head = g_object_get_data(G_OBJECT(form), "head");
+  int32_t mode_w = head->mode != NULL ? head->mode->width : head->custom_mode.width;
+  int32_t mode_h = head->mode != NULL ? head->mode->height : head->custom_mode.height;
+  if (head->logical_width > 0 && dim->w == mode_w && dim->h == mode_h
+      && round(dim->scale * 100.) == round(head->scale * 100.)
+      && (dim->rotation_id & 1) == (head->transform & 1)) {
+    *w = head->logical_width;
+    *h = head->logical_height;
+    return;
+  }
+  double scale = dim->scale > 0. ? dim->scale : 1.;
+  /* same as wlroots: wl_fixed scale snapped to 1/120, float math, truncated */
+  float fixed_scale = round(wl_fixed_to_double(wl_fixed_from_double(scale)) * 120.) / 120.;
+  *w = (int) ((float) dim->w / fixed_scale);
+  *h = (int) ((float) dim->h / fixed_scale);
+  if (dim->rotation_id & 1) {
+    SWAP(double, *w, *h);
+  }
+}
+
 static void queue_canvas_draw(struct wd_state *state) {
   GtkStyleContext *style_ctx = gtk_widget_get_style_context(state->canvas);
   color_to_float_array(style_ctx,
@@ -270,11 +292,9 @@ static void queue_canvas_draw(struct wd_state *state) {
     if (wd_head_form_get_enabled(form)) {
       WdHeadDimensions dim;
       wd_head_form_get_dimensions(form, &dim);
-      double w = dim.w;
-      double h = dim.h;
-      double scale = dim.scale;
-      if (scale <= 0.)
-        scale = 1.;
+      double w;
+      double h;
+      get_logical_size(form, &dim, &w, &h);
 
       struct wd_head *head = g_object_get_data(G_OBJECT(form_iter->data), "head");
       if (head->render == NULL) {
@@ -283,14 +303,11 @@ static void queue_canvas_draw(struct wd_state *state) {
       }
       struct wd_render_head_data *render = head->render;
       render->queued.rotation = dim.rotation_id;
-      if (render->queued.rotation & 1) {
-        SWAP(int, w, h);
-      }
       render->queued.x_invert = dim.flipped;
       render->x1 = floor(dim.x * state->zoom - state->render.scroll_x - state->render.x_origin);
       render->y1 = floor(dim.y * state->zoom - state->render.scroll_y - state->render.y_origin);
-      render->x2 = floor(render->x1 + w * state->zoom / scale);
-      render->y2 = floor(render->y1 + h * state->zoom / scale);
+      render->x2 = floor(render->x1 + w * state->zoom);
+      render->y2 = floor(render->y1 + h * state->zoom);
     }
   }
   gtk_gl_area_queue_render(GTK_GL_AREA(state->canvas));
@@ -666,14 +683,8 @@ static void canvas_drag1_update(GtkGestureDrag *drag,
     return;
   WdHeadDimensions dim;
   wd_head_form_get_dimensions(form, &dim);
-  struct wd_point size = { .x = dim.w, .y = dim.h };
-  if (dim.scale > 0.) {
-    size.x /= dim.scale;
-    size.y /= dim.scale;
-  }
-  if (dim.rotation_id & 1) {
-    SWAP(int, size.x, size.y);
-  }
+  struct wd_point size;
+  get_logical_size(form, &dim, &size.x, &size.y);
   struct wd_point tl = { /* top left */
     .x = (state->drag_start.x + delta_x - state->head_drag_start.x * size.x * state->zoom) / state->zoom,
     .y = (state->drag_start.y + delta_y - state->head_drag_start.y * size.y * state->zoom) / state->zoom
@@ -698,15 +709,9 @@ static void canvas_drag1_update(GtkGestureDrag *drag,
       wd_head_form_get_dimensions(other_form, &other_dim);
       double x1 = other_dim.x;
       double y1 = other_dim.y;
-      double w = other_dim.w;
-      double h = other_dim.h;
-      if (other_dim.scale > 0.) {
-        w /= other_dim.scale;
-        h /= other_dim.scale;
-      }
-      if (other_dim.rotation_id & 1) {
-        SWAP(int, w, h);
-      }
+      double w;
+      double h;
+      get_logical_size(other_form, &other_dim, &w, &h);
       double x2 = x1 + w;
       double y2 = y1 + h;
       if (fabs(br.x) <= snap)
@@ -736,7 +741,7 @@ static void canvas_drag1_update(GtkGestureDrag *drag,
         new_pos.y = y2;
     }
   }
-  wd_head_form_set_position(form, new_pos.x, new_pos.y);
+  wd_head_form_set_position(form, round(new_pos.x), round(new_pos.y));
 }
 
 static void canvas_drag1_end(GtkGestureDrag *drag,

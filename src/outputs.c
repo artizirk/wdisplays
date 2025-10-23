@@ -588,6 +588,16 @@ static void output_logical_position(void *data, struct zxdg_output_v1 *zxdg_outp
   }
 }
 
+static void output_logical_size(void *data, struct zxdg_output_v1 *zxdg_output_v1,
+    int32_t width, int32_t height) {
+  struct wd_output *output = data;
+  struct wd_head *head = wd_find_head(output->state, output);
+  if (head != NULL) {
+    head->logical_width = width;
+    head->logical_height = height;
+  }
+}
+
 static void output_name(void *data, struct zxdg_output_v1 *zxdg_output_v1,
     const char *name) {
   struct wd_output *output = data;
@@ -603,7 +613,7 @@ static void output_name(void *data, struct zxdg_output_v1 *zxdg_output_v1,
 
 static const struct zxdg_output_v1_listener output_listener = {
   .logical_position = output_logical_position,
-  .logical_size = (void (*)(void *, struct zxdg_output_v1 *, int32_t,  int32_t))noop,
+  .logical_size = output_logical_size,
   .done = (void (*)(void *, struct zxdg_output_v1 *))noop,
   .name = output_name,
   .description = (void (*)(void *, struct zxdg_output_v1 *, const char *))noop
