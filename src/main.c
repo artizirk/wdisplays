@@ -105,6 +105,32 @@ static void update_scroll_size(struct wd_state *state) {
   gtk_adjustment_set_value(scroll_y_adj, MIN(y, scroll_y_upper));
 }
 
+#define SWAP(_type, _a, _b) { _type _tmp = (_a); (_a) = (_b); (_b) = _tmp; }
+
+static void get_logical_size(WdHeadForm *form, const WdHeadDimensions *dim,
+    double *w, double *h) {
+  const struct wd_head *head = g_object_get_data(G_OBJECT(form), "head");
+  const struct wd_mode *mode = head->mode;
+  int32_t mode_w = mode != NULL ? mode->width : head->custom_mode.width;
+  int32_t mode_h = mode != NULL ? mode->height : head->custom_mode.height;
+  if (head->logical_width > 0 && dim->w == mode_w && dim->h == mode_h
+      && round(dim->scale * 100.) == round(head->scale * 100.)
+      && (dim->rotation_id & 1) == (head->transform & 1)) {
+    *w = head->logical_width;
+    *h = head->logical_height;
+    return;
+  }
+  double scale = dim->scale > 0. ? dim->scale : 1.;
+  scale = wl_fixed_to_double(wl_fixed_from_double(scale));
+  /* as sway does: snap to 1/120, divide in float, truncate */
+  float wlr_scale = round(scale * 120.) / 120.;
+  *w = (int) ((float) dim->w / wlr_scale);
+  *h = (int) ((float) dim->h / wlr_scale);
+  if (dim->rotation_id & 1) {
+    SWAP(double, *w, *h);
+  }
+}
+
 /*
  * Recalculates the desired canvas size, accounting for zoom + margins.
  */
@@ -120,12 +146,9 @@ static void update_canvas_size(struct wd_state *state) {
     if (wd_head_form_get_enabled(form)) {
       WdHeadDimensions dim;
       wd_head_form_get_dimensions(form, &dim);
-      int h = dim.h;
-      int w = dim.w;
-      if (dim.scale > 0.) {
-        w /= dim.scale;
-        h /= dim.scale;
-      }
+      double w;
+      double h;
+      get_logical_size(form, &dim, &w, &h);
       int x2 = dim.x + w;
       int y2 = dim.y + h;
       xmin = MIN(xmin, dim.x);
@@ -247,30 +270,6 @@ static inline void color_to_float_array(GtkStyleContext *ctx,
   out[1] = color.green;
   out[2] = color.blue;
   out[3] = color.alpha;
-}
-
-#define SWAP(_type, _a, _b) { _type _tmp = (_a); (_a) = (_b); (_b) = _tmp; }
-
-static void get_logical_size(WdHeadForm *form, const WdHeadDimensions *dim,
-    double *w, double *h) {
-  const struct wd_head *head = g_object_get_data(G_OBJECT(form), "head");
-  int32_t mode_w = head->mode != NULL ? head->mode->width : head->custom_mode.width;
-  int32_t mode_h = head->mode != NULL ? head->mode->height : head->custom_mode.height;
-  if (head->logical_width > 0 && dim->w == mode_w && dim->h == mode_h
-      && round(dim->scale * 100.) == round(head->scale * 100.)
-      && (dim->rotation_id & 1) == (head->transform & 1)) {
-    *w = head->logical_width;
-    *h = head->logical_height;
-    return;
-  }
-  double scale = dim->scale > 0. ? dim->scale : 1.;
-  /* same as wlroots: wl_fixed scale snapped to 1/120, float math, truncated */
-  float fixed_scale = round(wl_fixed_to_double(wl_fixed_from_double(scale)) * 120.) / 120.;
-  *w = (int) ((float) dim->w / fixed_scale);
-  *h = (int) ((float) dim->h / fixed_scale);
-  if (dim->rotation_id & 1) {
-    SWAP(double, *w, *h);
-  }
 }
 
 static void queue_canvas_draw(struct wd_state *state) {

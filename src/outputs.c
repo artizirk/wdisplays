@@ -595,6 +595,7 @@ static void output_logical_size(void *data, struct zxdg_output_v1 *zxdg_output_v
   if (head != NULL) {
     head->logical_width = width;
     head->logical_height = height;
+    wd_ui_reset_head(head, 0);
   }
 }
 
