@@ -49,6 +49,7 @@ struct wd_output {
 
   char *name;
   struct wl_list frames;
+  struct wd_frame *spare;
   GtkWidget *overlay_window;
   struct zwlr_layer_surface_v1 *overlay_layer_surface;
 };
@@ -62,8 +63,10 @@ struct wd_frame {
   unsigned stride;
   unsigned width;
   unsigned height;
+  uint32_t format;
   struct wl_shm_pool *pool;
   struct wl_buffer *buffer;
+  uint8_t *data;
   uint8_t *pixels;
   uint64_t tick;
   bool y_invert;

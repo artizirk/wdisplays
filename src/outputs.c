@@ -141,15 +141,24 @@ void wd_apply_state(struct wd_state *state, struct wl_list *new_outputs,
   wl_display_roundtrip(display);
 }
 
-static void wd_frame_destroy(struct wd_frame *frame) {
-  if (frame->pixels != NULL)
-    munmap(frame->pixels, frame->height * frame->stride);
+static void release_buffer(struct wd_frame *frame) {
+  if (frame->data != NULL)
+    munmap(frame->data, frame->height * frame->stride);
   if (frame->buffer != NULL)
     wl_buffer_destroy(frame->buffer);
   if (frame->pool != NULL)
     wl_shm_pool_destroy(frame->pool);
   if (frame->capture_fd != -1)
     close(frame->capture_fd);
+  frame->data = NULL;
+  frame->pixels = NULL;
+  frame->buffer = NULL;
+  frame->pool = NULL;
+  frame->capture_fd = -1;
+}
+
+static void wd_frame_destroy(struct wd_frame *frame) {
+  release_buffer(frame);
   if (frame->wlr_frame != NULL)
     zwlr_screencopy_frame_v1_destroy(frame->wlr_frame);
 
@@ -199,20 +208,35 @@ static void capture_buffer(void *data,
     goto err;
   }
 
-  size_t size = stride * height;
-  frame->capture_fd = create_shm_file(size, "/wd-%s", frame->output->name);
-  if (frame->capture_fd == -1) {
-    goto err;
-  }
+  if (frame->buffer == NULL || frame->format != format
+      || frame->width != width || frame->height != height
+      || frame->stride != stride) {
+    release_buffer(frame);
 
-  frame->pool = wl_shm_create_pool(frame->output->state->shm,
-      frame->capture_fd, size);
-  frame->buffer = wl_shm_pool_create_buffer(frame->pool, 0,
-      width, height, stride, format);
+    size_t size = stride * height;
+    frame->capture_fd = create_shm_file(size, "/wd-%s", frame->output->name);
+    if (frame->capture_fd == -1) {
+      goto err;
+    }
+
+    frame->data = mmap(NULL, size, PROT_READ, MAP_SHARED,
+        frame->capture_fd, 0);
+    if (frame->data == MAP_FAILED) {
+      frame->data = NULL;
+      fprintf(stderr, "mmap: %d: %s\n", frame->capture_fd, strerror(errno));
+      goto err;
+    }
+
+    frame->pool = wl_shm_create_pool(frame->output->state->shm,
+        frame->capture_fd, size);
+    frame->buffer = wl_shm_pool_create_buffer(frame->pool, 0,
+        width, height, stride, format);
+    frame->format = format;
+    frame->stride = stride;
+    frame->width = width;
+    frame->height = height;
+  }
   zwlr_screencopy_frame_v1_copy(copy_frame, frame->buffer);
-  frame->stride = stride;
-  frame->width = width;
-  frame->height = height;
   frame->swap_rgb = format == WL_SHM_FORMAT_ABGR8888
     || format == WL_SHM_FORMAT_XBGR8888;
 
@@ -232,26 +256,25 @@ static void capture_ready(void *data,
     struct zwlr_screencopy_frame_v1 *wlr_frame,
     uint32_t tv_sec_hi, uint32_t tv_sec_lo, uint32_t tv_nsec) {
   struct wd_frame *frame = data;
+  struct wd_output *output = frame->output;
 
-  frame->pixels = mmap(NULL, frame->stride * frame->height,
-      PROT_READ, MAP_SHARED, frame->capture_fd, 0);
-  if (frame->pixels == MAP_FAILED) {
-    frame->pixels = NULL;
-    fprintf(stderr, "mmap: %d: %s\n", frame->capture_fd, strerror(errno));
-    wd_frame_destroy(frame);
-    return;
-  } else {
-    uint64_t tv_sec = (uint64_t) tv_sec_hi << 32 | tv_sec_lo;
-    frame->tick = (tv_sec * 1000000) + (tv_nsec / 1000);
-  }
+  frame->pixels = frame->data;
+  uint64_t tv_sec = (uint64_t) tv_sec_hi << 32 | tv_sec_lo;
+  frame->tick = (tv_sec * 1000000) + (tv_nsec / 1000);
 
   zwlr_screencopy_frame_v1_destroy(frame->wlr_frame);
   frame->wlr_frame = NULL;
 
   struct wd_frame *frame_iter, *frame_tmp;
-  wl_list_for_each_safe(frame_iter, frame_tmp, &frame->output->frames, link) {
+  wl_list_for_each_safe(frame_iter, frame_tmp, &output->frames, link) {
     if (frame != frame_iter) {
-      wd_frame_destroy(frame_iter);
+      if (output->spare == NULL) {
+        wl_list_remove(&frame_iter->link);
+        wl_list_init(&frame_iter->link);
+        output->spare = frame_iter;
+      } else {
+        wd_frame_destroy(frame_iter);
+      }
     }
   }
 }
@@ -290,9 +313,14 @@ void wd_capture_frame(struct wd_state *state) {
 
   struct wd_output *output;
   wl_list_for_each(output, &state->outputs, link) {
-    struct wd_frame *frame = calloc(1, sizeof(*frame));
-    frame->output = output;
-    frame->capture_fd = -1;
+    struct wd_frame *frame = output->spare;
+    output->spare = NULL;
+    if (frame == NULL) {
+      frame = calloc(1, sizeof(*frame));
+      frame->output = output;
+      frame->capture_fd = -1;
+    }
+    frame->pixels = NULL;
     frame->wlr_frame =
       zwlr_screencopy_manager_v1_capture_output(state->copy_manager, 1,
         output->wl_output);
@@ -306,6 +334,9 @@ static void wd_output_destroy(struct wd_output *output) {
   struct wd_frame *frame, *frame_tmp;
   wl_list_for_each_safe(frame, frame_tmp, &output->frames, link) {
     wd_frame_destroy(frame);
+  }
+  if (output->spare != NULL) {
+    wd_frame_destroy(output->spare);
   }
   if (output->state->layer_shell != NULL) {
     wd_destroy_overlay(output);
