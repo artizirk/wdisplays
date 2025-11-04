@@ -322,7 +322,7 @@ void wd_capture_frame(struct wd_state *state) {
     }
     frame->pixels = NULL;
     frame->wlr_frame =
-      zwlr_screencopy_manager_v1_capture_output(state->copy_manager, 1,
+      zwlr_screencopy_manager_v1_capture_output(state->copy_manager, 0,
         output->wl_output);
     zwlr_screencopy_frame_v1_add_listener(frame->wlr_frame, &capture_listener,
         frame);
