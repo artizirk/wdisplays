@@ -223,6 +223,8 @@ struct wd_state {
   GdkCursor *move_cursor;
 
   unsigned int canvas_tick;
+  unsigned int capture_timeout;
+  bool capture_due;
   struct wd_gl_data *gl_data;
   struct wd_render_data render;
 };

@@ -20,6 +20,7 @@ __attribute__((noreturn)) void wd_fatal_error(int status, const char *message) {
 #define MIN_ZOOM (1./1000.)
 #define MAX_ZOOM 1000.
 #define CANVAS_MARGIN 40
+#define CAPTURE_INTERVAL_MS 200
 
 static const char *APP_PREFIX = "app";
 
@@ -152,6 +153,13 @@ static void cache_scroll(struct wd_state *state) {
 
 static gboolean redraw_canvas(GtkWidget *widget, GdkFrameClock *frame_clock, gpointer data);
 
+static gboolean capture_tick(gpointer data) {
+  struct wd_state *state = data;
+  state->capture_due = true;
+  gtk_gl_area_queue_render(GTK_GL_AREA(state->canvas));
+  return G_SOURCE_CONTINUE;
+}
+
 static void update_tick_callback(struct wd_state *state) {
   bool any_animate = FALSE;
   struct wd_render_head_data *render;
@@ -162,7 +170,7 @@ static void update_tick_callback(struct wd_state *state) {
       break;
     }
   }
-  if (!any_animate && !state->capture) {
+  if (!any_animate) {
     if (state->canvas_tick != -1) {
       gtk_widget_remove_tick_callback(state->canvas, state->canvas_tick);
       state->canvas_tick = -1;
@@ -170,6 +178,16 @@ static void update_tick_callback(struct wd_state *state) {
   } else if (state->canvas_tick == -1) {
     state->canvas_tick =
       gtk_widget_add_tick_callback(state->canvas, redraw_canvas, state, NULL);
+  }
+  if (!state->capture) {
+    if (state->capture_timeout != -1) {
+      g_source_remove(state->capture_timeout);
+      state->capture_timeout = -1;
+    }
+  } else if (state->capture_timeout == -1) {
+    state->capture_due = true;
+    state->capture_timeout =
+      g_timeout_add(CAPTURE_INTERVAL_MS, capture_tick, state);
   }
   gtk_gl_area_queue_render(GTK_GL_AREA(state->canvas));
   gtk_gl_area_set_auto_render(GTK_GL_AREA(state->canvas), state->capture);
@@ -415,6 +433,8 @@ static void cleanup(GtkWidget *window, gpointer data) {
     g_source_remove(state->reset_idle);
   if (state->apply_idle != -1)
     g_source_remove(state->apply_idle);
+  if (state->capture_timeout != -1)
+    g_source_remove(state->capture_timeout);
   g_object_unref(state->grab_cursor);
   g_object_unref(state->grabbing_cursor);
   g_object_unref(state->move_cursor);
@@ -523,7 +543,10 @@ static void canvas_render(GtkGLArea *area, GdkGLContext *context, gpointer data)
   GdkFrameClock *clock = gtk_widget_get_frame_clock(state->canvas);
   uint64_t tick = gdk_frame_clock_get_frame_time(clock);
 
-  wd_capture_frame(state);
+  if (state->capture_due) {
+    state->capture_due = false;
+    wd_capture_frame(state);
+  }
 
   struct wd_head *head;
   wl_list_for_each(head, &state->heads, link) {
@@ -864,9 +887,6 @@ static void auto_apply_selected(GSimpleAction *action, GVariant *param, gpointer
 
 static gboolean redraw_canvas(GtkWidget *widget, GdkFrameClock *frame_clock, gpointer data) {
   struct wd_state *state = data;
-  if (state->capture) {
-    wd_capture_frame(state);
-  }
   update_tick_callback(state);
   queue_canvas_draw(state);
   return G_SOURCE_CONTINUE;
@@ -922,6 +942,7 @@ static void activate(GtkApplication* app, gpointer user_data) {
   struct wd_state *state = wd_state_create();
   state->zoom = DEFAULT_ZOOM;
   state->canvas_tick = -1;
+  state->capture_timeout = -1;
   state->apply_idle = -1;
   state->reset_idle = -1;
 
