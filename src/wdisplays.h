@@ -286,6 +286,11 @@ void wd_capture_frame(struct wd_state *state);
 void wd_capture_wait(struct wd_state *state, struct wl_display *display);
 
 /*
+ * Frees all captured frames and their buffers.
+ */
+void wd_capture_release(struct wd_state *state);
+
+/*
  * Updates the UI stack of all heads. Does not update individual head forms.
  * Useful for when a display is plugged/unplugged and we want to add/remove
  * a page, but we don't want to wipe out user's changes on the other pages.

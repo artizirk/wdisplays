@@ -183,6 +183,7 @@ static void update_tick_callback(struct wd_state *state) {
     if (state->capture_timeout != -1) {
       g_source_remove(state->capture_timeout);
       state->capture_timeout = -1;
+      wd_capture_release(state);
     }
   } else if (state->capture_timeout == -1) {
     state->capture_due = true;

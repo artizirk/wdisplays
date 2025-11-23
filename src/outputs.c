@@ -252,6 +252,21 @@ static void capture_flags(void *data,
   frame->y_invert = !!(flags & ZWLR_SCREENCOPY_FRAME_V1_FLAGS_Y_INVERT);
 }
 
+static void keep_as_spare(struct wd_frame *frame) {
+  struct wd_output *output = frame->output;
+  if (output->spare != NULL) {
+    wd_frame_destroy(frame);
+    return;
+  }
+  if (frame->wlr_frame != NULL) {
+    zwlr_screencopy_frame_v1_destroy(frame->wlr_frame);
+    frame->wlr_frame = NULL;
+  }
+  wl_list_remove(&frame->link);
+  wl_list_init(&frame->link);
+  output->spare = frame;
+}
+
 static void capture_ready(void *data,
     struct zwlr_screencopy_frame_v1 *wlr_frame,
     uint32_t tv_sec_hi, uint32_t tv_sec_lo, uint32_t tv_nsec) {
@@ -268,13 +283,7 @@ static void capture_ready(void *data,
   struct wd_frame *frame_iter, *frame_tmp;
   wl_list_for_each_safe(frame_iter, frame_tmp, &output->frames, link) {
     if (frame != frame_iter) {
-      if (output->spare == NULL) {
-        wl_list_remove(&frame_iter->link);
-        wl_list_init(&frame_iter->link);
-        output->spare = frame_iter;
-      } else {
-        wd_frame_destroy(frame_iter);
-      }
+      keep_as_spare(frame_iter);
     }
   }
 }
@@ -282,7 +291,7 @@ static void capture_ready(void *data,
 static void capture_failed(void *data,
     struct zwlr_screencopy_frame_v1 *wlr_frame) {
   struct wd_frame *frame = data;
-  wd_frame_destroy(frame);
+  keep_as_spare(frame);
 }
 
 struct zwlr_screencopy_frame_v1_listener capture_listener = {
@@ -327,6 +336,20 @@ void wd_capture_frame(struct wd_state *state) {
     zwlr_screencopy_frame_v1_add_listener(frame->wlr_frame, &capture_listener,
         frame);
     wl_list_insert(&output->frames, &frame->link);
+  }
+}
+
+void wd_capture_release(struct wd_state *state) {
+  struct wd_output *output;
+  wl_list_for_each(output, &state->outputs, link) {
+    struct wd_frame *frame, *frame_tmp;
+    wl_list_for_each_safe(frame, frame_tmp, &output->frames, link) {
+      wd_frame_destroy(frame);
+    }
+    if (output->spare != NULL) {
+      wd_frame_destroy(output->spare);
+      output->spare = NULL;
+    }
   }
 }
 
