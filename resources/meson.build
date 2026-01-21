@@ -49,9 +49,9 @@ install_data(
       configuration: conf),
     install_dir: get_option('datadir') / 'applications')
 
-settings_schemas = [ 'wdisplays.gschema.xml' ]
-gschema_dir = get_option('prefix') / get_option('datadir') / 'glib-2.0' / 'schemas'
-install_data(settings_schemas, install_dir: gschema_dir)
+install_data('wdisplays.gschema.xml',
+  rename: '@0@.gschema.xml'.format(meson.project_name()),
+  install_dir: get_option('datadir') / 'glib-2.0' / 'schemas')
 
 gnome.post_install(
   glib_compile_schemas: true

@@ -215,6 +215,8 @@ struct wd_state {
   GtkWidget *info_label;
   GtkWidget *menu_button;
 
+  GSettings *settings;
+
   GdkCursor *grab_cursor;
   GdkCursor *grabbing_cursor;
   GdkCursor *move_cursor;

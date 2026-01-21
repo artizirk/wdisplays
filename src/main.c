@@ -418,6 +418,7 @@ static void cleanup(GtkWidget *window, gpointer data) {
   g_object_unref(state->grab_cursor);
   g_object_unref(state->grabbing_cursor);
   g_object_unref(state->move_cursor);
+  g_clear_object(&state->settings);
   wd_state_destroy(state);
 }
 
@@ -858,10 +859,9 @@ static void info_bar_animation_done(GObject *object, GParamSpec *pspec, gpointer
 
 static void auto_apply_selected(GSimpleAction *action, GVariant *param, gpointer data) {
   struct wd_state *state = data;
-
-  GSettings *settings = g_settings_new("com.github.artizirk.wdisplays");
-  g_settings_set_boolean(settings, "auto-apply", g_variant_get_boolean(param));
-
+  if (state->settings != NULL) {
+    g_settings_set_boolean(state->settings, "auto-apply", g_variant_get_boolean(param));
+  }
   state->autoapply = g_variant_get_boolean(param);
   g_simple_action_set_state(action, param);
 }
@@ -878,10 +878,9 @@ static gboolean redraw_canvas(GtkWidget *widget, GdkFrameClock *frame_clock, gpo
 
 static void capture_selected(GSimpleAction *action, GVariant *param, gpointer data) {
   struct wd_state *state = data;
-
-  GSettings *settings = g_settings_new("com.github.artizirk.wdisplays");
-  g_settings_set_boolean(settings, "capture-screens", g_variant_get_boolean(param));
-
+  if (state->settings != NULL) {
+    g_settings_set_boolean(state->settings, "capture-screens", g_variant_get_boolean(param));
+  }
   state->capture = g_variant_get_boolean(param);
   g_simple_action_set_state(action, param);
   update_tick_callback(state);
@@ -889,10 +888,9 @@ static void capture_selected(GSimpleAction *action, GVariant *param, gpointer da
 
 static void overlay_selected(GSimpleAction *action, GVariant *param, gpointer data) {
   struct wd_state *state = data;
-
-  GSettings *settings = g_settings_new("com.github.artizirk.wdisplays");
-  g_settings_set_boolean(settings, "show-overlay", g_variant_get_boolean(param));
-
+  if (state->settings != NULL) {
+    g_settings_set_boolean(state->settings, "show-overlay", g_variant_get_boolean(param));
+  }
   state->show_overlay = g_variant_get_boolean(param);
   g_simple_action_set_state(action, param);
 
@@ -1031,10 +1029,15 @@ static void activate(GtkApplication* app, gpointer user_data) {
   g_signal_connect(action, "activate", G_CALLBACK(zoom_in), state);
   g_action_map_add_action(G_ACTION_MAP(main_actions), G_ACTION(action));
 
-  GSettings *settings = g_settings_new("com.github.artizirk.wdisplays");
-  state->autoapply = g_settings_get_boolean(settings, "auto-apply");
-  state->capture = g_settings_get_boolean(settings, "capture-screens");
-  state->show_overlay = g_settings_get_boolean(settings, "show-overlay");
+  GSettingsSchemaSource *schemas = g_settings_schema_source_get_default();
+  g_autoptr(GSettingsSchema) schema = schemas == NULL ? NULL :
+      g_settings_schema_source_lookup(schemas, WDISPLAYS_APP_ID, TRUE);
+  if (schema != NULL) {
+    state->settings = g_settings_new(WDISPLAYS_APP_ID);
+    state->autoapply = g_settings_get_boolean(state->settings, "auto-apply");
+    state->capture = g_settings_get_boolean(state->settings, "capture-screens");
+    state->show_overlay = g_settings_get_boolean(state->settings, "show-overlay");
+  }
 
   action = g_simple_action_new_stateful("auto-apply", NULL,
       g_variant_new_boolean(state->autoapply));

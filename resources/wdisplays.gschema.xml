@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <schemalist>
-  <schema id="com.github.artizirk.wdisplays" path="/com/github/artizirk/wdisplays/">
+  <schema id="network.cycles.wdisplays" path="/network/cycles/wdisplays/">
     <key name="auto-apply" type="b">
       <default>false</default>
     </key>

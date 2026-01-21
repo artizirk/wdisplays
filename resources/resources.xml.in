@@ -3,7 +3,6 @@
   <gresource prefix="@resource_prefix@">
     <file compressed="true" preprocess="xml-stripblanks">wdisplays.ui</file>
     <file compressed="true" preprocess="xml-stripblanks">head.ui</file>
-    <file compressed="true" preprocess="xml-stripblanks">wdisplays.gschema.xml</file>
     <file compressed="true">style.css</file>
   </gresource>
 </gresources>
