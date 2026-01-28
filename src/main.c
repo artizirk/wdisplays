@@ -923,16 +923,18 @@ static void window_state_changed(GtkWidget *window, GdkEventWindowState *event,
   }
 }
 
-static int startup_autoapply = -1;
-static int startup_capture = -1;
-static int startup_overlay = -1;
+struct wd_startup_options {
+  int autoapply;
+  int capture;
+  int show_overlay;
+};
 
 static const GOptionEntry startup_option_entries[] = {
   { "auto-apply", 0, 0, G_OPTION_ARG_NONE, NULL, "Apply changes automatically", NULL },
   { "no-auto-apply", 0, 0, G_OPTION_ARG_NONE, NULL, "Apply changes only when asked to", NULL },
   { "preview", 0, 0, G_OPTION_ARG_NONE, NULL, "Show screen contents in the preview", NULL },
   { "no-preview", 0, 0, G_OPTION_ARG_NONE, NULL, "Do not show screen contents in the preview", NULL },
-  { "overlay", 0, 0, G_OPTION_ARG_NONE, NULL, "Overlay screen names on the screens", NULL },
+  { "overlay", 0, 0, G_OPTION_ARG_NONE, NULL, "Overlay screen names", NULL },
   { "no-overlay", 0, 0, G_OPTION_ARG_NONE, NULL, "Do not overlay screen names", NULL },
   { "version", 0, 0, G_OPTION_ARG_NONE, NULL, "Print the version and exit", NULL },
   { NULL }
@@ -954,19 +956,20 @@ static bool read_startup_option(GVariantDict *options, const char *on,
 
 static gint handle_local_options(GApplication *app, GVariantDict *options,
     gpointer data) {
+  struct wd_startup_options *startup = data;
   if (g_variant_dict_contains(options, "version")) {
     printf("wdisplays %s\n", WDISPLAYS_VERSION);
     return 0;
   }
-  if (!read_startup_option(options, "auto-apply", "no-auto-apply", &startup_autoapply)
-      || !read_startup_option(options, "preview", "no-preview", &startup_capture)
-      || !read_startup_option(options, "overlay", "no-overlay", &startup_overlay)) {
+  if (!read_startup_option(options, "auto-apply", "no-auto-apply", &startup->autoapply)
+      || !read_startup_option(options, "preview", "no-preview", &startup->capture)
+      || !read_startup_option(options, "overlay", "no-overlay", &startup->show_overlay)) {
     return 1;
   }
-  if (startup_autoapply != -1 || startup_capture != -1 || startup_overlay != -1) {
+  if (startup->autoapply != -1 || startup->capture != -1 || startup->show_overlay != -1) {
     g_autoptr(GError) error = NULL;
     if (!g_application_register(app, NULL, &error)) {
-      fprintf(stderr, "%s\n", error->message);
+      fprintf(stderr, "Failed to register: %s\n", error->message);
       return 1;
     }
     if (g_application_get_is_remote(app)) {
@@ -977,6 +980,7 @@ static gint handle_local_options(GApplication *app, GVariantDict *options,
 }
 
 static void activate(GtkApplication* app, gpointer user_data) {
+  struct wd_startup_options *startup = user_data;
   GdkDisplay *gdk_display = gdk_display_get_default();
   if (!GDK_IS_WAYLAND_DISPLAY(gdk_display)) {
     wd_fatal_error(1, "This program is only usable on Wayland sessions.");
@@ -1091,16 +1095,16 @@ static void activate(GtkApplication* app, gpointer user_data) {
     state->capture = g_settings_get_boolean(state->settings, "capture-screens");
     state->show_overlay = g_settings_get_boolean(state->settings, "show-overlay");
   }
-  if (startup_autoapply != -1) {
-    state->autoapply = startup_autoapply;
+  if (startup->autoapply != -1) {
+    state->autoapply = startup->autoapply;
   }
-  if (startup_capture != -1) {
-    state->capture = startup_capture;
+  if (startup->capture != -1) {
+    state->capture = startup->capture;
   }
-  if (startup_overlay != -1) {
-    state->show_overlay = startup_overlay;
+  if (startup->show_overlay != -1) {
+    state->show_overlay = startup->show_overlay;
   }
-  startup_autoapply = startup_capture = startup_overlay = -1;
+  startup->autoapply = startup->capture = startup->show_overlay = -1;
 
   action = g_simple_action_new_stateful("auto-apply", NULL,
       g_variant_new_boolean(state->autoapply));
@@ -1168,8 +1172,9 @@ static void activate(GtkApplication* app, gpointer user_data) {
 int main(int argc, char *argv[]) {
   g_setenv("GDK_GL", "gles", FALSE);
   GtkApplication *app = gtk_application_new(WDISPLAYS_APP_ID, G_APPLICATION_FLAGS_NONE);
-  g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
-  g_signal_connect(app, "handle-local-options", G_CALLBACK(handle_local_options), NULL);
+  struct wd_startup_options startup = { -1, -1, -1 };
+  g_signal_connect(app, "activate", G_CALLBACK(activate), &startup);
+  g_signal_connect(app, "handle-local-options", G_CALLBACK(handle_local_options), &startup);
   g_application_add_main_option_entries(G_APPLICATION(app), startup_option_entries);
   int status = g_application_run(G_APPLICATION(app), argc, argv);
   g_object_unref(app);
