@@ -11,18 +11,23 @@ epoxy = dependency('epoxy')
 
 configure_file(input: 'config.h.in', output: 'config.h', configuration: conf)
 
+sources = [
+  'main.c',
+  'glviewport.c',
+  'headform.c',
+  'outputs.c',
+  'overlay.c',
+  'render.c',
+  resources,
+]
+
+if get_option('kanshi').allowed()
+  sources += 'store.c'
+endif
+
 executable(
   'wdisplays',
-  [
-    'main.c',
-    'glviewport.c',
-    'headform.c',
-    'outputs.c',
-    'overlay.c',
-    'render.c',
-    'store.c',
-    resources,
-  ],
+  sources,
   dependencies : [
     m_dep,
     rt_dep,
