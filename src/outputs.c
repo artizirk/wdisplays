@@ -28,8 +28,6 @@
 #include "wlr-screencopy-unstable-v1-client-protocol.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
-extern int store_config(struct wl_list *outputs);
-
 static void noop() {
   // This space is intentionally left blank
 }
