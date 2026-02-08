@@ -344,6 +344,9 @@ static void wd_head_destroy(struct wd_head *head) {
   zwlr_output_head_v1_destroy(head->wlr_head);
   free(head->name);
   free(head->description);
+  free(head->make);
+  free(head->model);
+  free(head->serial_number);
   free(head);
 }
 
@@ -463,6 +466,24 @@ static void head_handle_scale(void *data,
   wd_ui_reset_head(head, WD_FIELD_SCALE);
 }
 
+static void head_handle_make(void *data,
+    struct zwlr_output_head_v1 *wlr_head, const char *make) {
+  struct wd_head *head = data;
+  head->make = strdup(make);
+}
+
+static void head_handle_model(void *data,
+    struct zwlr_output_head_v1 *wlr_head, const char *model) {
+  struct wd_head *head = data;
+  head->model = strdup(model);
+}
+
+static void head_handle_serial_number(void *data,
+    struct zwlr_output_head_v1 *wlr_head, const char *serial_number) {
+  struct wd_head *head = data;
+  head->serial_number = strdup(serial_number);
+}
+
 static void head_handle_finished(void *data,
     struct zwlr_output_head_v1 *wlr_head) {
   struct wd_head *head = data;
@@ -493,6 +514,9 @@ static const struct zwlr_output_head_v1_listener head_listener = {
   .transform = head_handle_transform,
   .scale = head_handle_scale,
   .finished = head_handle_finished,
+  .make = head_handle_make,
+  .model = head_handle_model,
+  .serial_number = head_handle_serial_number,
 };
 
 static void output_manager_handle_head(void *data,
@@ -541,7 +565,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
 
   if (strcmp(interface, zwlr_output_manager_v1_interface.name) == 0) {
     state->output_manager = wl_registry_bind(registry, name,
-        &zwlr_output_manager_v1_interface, 1);
+        &zwlr_output_manager_v1_interface, MIN(version, 2));
     zwlr_output_manager_v1_add_listener(state->output_manager,
         &output_manager_listener, state);
   } else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {

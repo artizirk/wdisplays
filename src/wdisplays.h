@@ -105,6 +105,7 @@ struct wd_head {
 
   uint32_t id;
   char *name, *description;
+  char *make, *model, *serial_number;
   int32_t phys_width, phys_height; // mm
   struct wl_list modes;
 
