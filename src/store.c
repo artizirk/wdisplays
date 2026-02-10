@@ -200,6 +200,27 @@ struct profile_line match(char **descriptions, int num, const char *filename) {
   return matched_profile;
 }
 
+static const char *transform_name(enum wl_output_transform transform) {
+  switch (transform) {
+  case WL_OUTPUT_TRANSFORM_90:
+    return "90";
+  case WL_OUTPUT_TRANSFORM_180:
+    return "180";
+  case WL_OUTPUT_TRANSFORM_270:
+    return "270";
+  case WL_OUTPUT_TRANSFORM_FLIPPED:
+    return "flipped";
+  case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+    return "flipped-90";
+  case WL_OUTPUT_TRANSFORM_FLIPPED_180:
+    return "flipped-180";
+  case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+    return "flipped-270";
+  default:
+    return "normal";
+  }
+}
+
 int wd_store_config(struct wl_list *outputs) {
   const char *file_name = wd_get_kanshi_config_file_path();
   char tmp_file_name[PATH_MAX];
@@ -216,18 +237,7 @@ int wd_store_config(struct wl_list *outputs) {
   wl_list_for_each(output, outputs, link) {
     struct wd_head *head = output->head;
 
-    // for transform
-    char *trans_str;
-    switch (output->transform) {
-      case WL_OUTPUT_TRANSFORM_NORMAL     : trans_str = "normal";
-      case WL_OUTPUT_TRANSFORM_90         : trans_str = "90";
-      case WL_OUTPUT_TRANSFORM_180        : trans_str = "180";
-      case WL_OUTPUT_TRANSFORM_270        : trans_str = "270";
-      case WL_OUTPUT_TRANSFORM_FLIPPED_90 : trans_str = "flipped-90";
-      case WL_OUTPUT_TRANSFORM_FLIPPED_180: trans_str = "flipped-180";
-      case WL_OUTPUT_TRANSFORM_FLIPPED_270: trans_str = "flipped-270";
-      default                             : trans_str = "normal";
-    };
+    const char *trans_str = transform_name(output->transform);
 
     if (description_index < HEADS_MAX) {
       descriptions[description_index] = strdup(head->name);
