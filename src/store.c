@@ -244,9 +244,12 @@ int wd_store_config(struct wl_list *outputs) {
       if (!output->enabled) {
         sprintf(outputConfigs[description_index], "output %s disable", head->name);
       } else {
-        sprintf(outputConfigs[description_index], "output %s enable position %d,%d mode %dx%d@%.4f scale %.2f transform %s",
-                head->name, output->x, output->y, output->width, output->height, output->refresh / 1.0e3, output->scale,
-                trans_str);
+        char refresh[G_ASCII_DTOSTR_BUF_SIZE];
+        char scale[G_ASCII_DTOSTR_BUF_SIZE];
+        g_ascii_formatd(refresh, sizeof(refresh), "%.3f", output->refresh / 1.0e3);
+        g_ascii_dtostr(scale, sizeof(scale), output->scale);
+        sprintf(outputConfigs[description_index], "output %s enable position %d,%d mode %dx%d@%sHz scale %s transform %s",
+                head->name, output->x, output->y, output->width, output->height, refresh, scale, trans_str);
       }
       description_index++;
     } else {
