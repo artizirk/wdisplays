@@ -347,11 +347,6 @@ void wd_destroy_overlay(struct wd_output *output);
 // SPDX-SnippetCopyrightText: 2024-2025 Jason André Charles Gantner
 #ifdef WITH_KANSHI
 /*
- * Locate kanshi config
- */
-char *wd_get_kanshi_config_file_path();
-
-/*
  * Updates kanshi config
  */
 int wd_store_config(struct wl_list *outputs);

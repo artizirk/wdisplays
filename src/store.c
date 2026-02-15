@@ -18,77 +18,30 @@ struct profile_line {
 
 typedef enum { Looking_for_profile, Looking_for_outputs, Found } parser_states;
 
-char *wd_get_kanshi_config_file_path() {
-  char kanshiConfigPath[PATH_MAX];
-  char wdisplaysPath[PATH_MAX];
-  char defaultConfigDir[PATH_MAX];
-  // if $XDG_CONFIG_HOME is set, use it
-  {
-    char *configDir = getenv("XDG_CONFIG_HOME");
-    if (configDir == NULL) { // fallback to $HOME
-      configDir = getenv("HOME");
-      if (configDir == NULL) {
-        dprintf(2, "%s:%i:%s(): Cannot find $XDG_CONFIG_HOME nor $HOME directories", __FILE__, __LINE__, __func__);
-        return NULL;
-      } else { // configdir is $HOME/config
-        snprintf(defaultConfigDir, sizeof(defaultConfigDir), "%s/.config", configDir);
+static char *get_config_path(void) {
+  const char *env_path = g_getenv("WDISPLAYS_KANSHI_CONFIG");
+  if (env_path != NULL) {
+    return g_strdup(env_path);
+  }
+
+  const char *config_dir = g_get_user_config_dir();
+  g_autofree char *wdisplays_path = g_build_filename(config_dir, "wdisplays.conf", NULL);
+  g_autofree char *contents = NULL;
+  g_autofree char *store_path = NULL;
+  if (g_file_get_contents(wdisplays_path, &contents, NULL, NULL)) {
+    g_auto(GStrv) lines = g_strsplit(contents, "\n", -1);
+    for (char **line = lines; *line != NULL; line++) {
+      char *value = strchr(*line, '=');
+      if (strstr(*line, "store_path") != NULL && value != NULL) {
+        g_free(store_path);
+        store_path = g_strdup(g_strstrip(value + 1));
       }
-    } else { // configDir is $XDG_CONFIG_HOME
-      snprintf(defaultConfigDir, sizeof(defaultConfigDir), "%s", configDir);
     }
   }
-
-  // set  default kanshi config path
-  snprintf(kanshiConfigPath, sizeof(kanshiConfigPath), "%s/kanshi/config", defaultConfigDir);
-
-  // look for store_path in wdisplays.conf
-  snprintf(wdisplaysPath, sizeof(wdisplaysPath), "%s/wdisplays.conf", defaultConfigDir);
-
-  FILE *wdisplaysFile = fopen(wdisplaysPath, "r");
-  if (wdisplaysFile != NULL) {
-    char line[LINE_MAX]; // LINE_MAX is a platform-dependendant macro
-
-    // try to match "store_path" term
-    while (fgets(line, sizeof(line), wdisplaysFile) != NULL) {
-      if (strstr(line, "store_path") != NULL) {
-        // if found, extract path
-        char *pathStart = strchr(line, '=');
-        if (pathStart != NULL) {
-          pathStart++;                             // skip '='
-          while (isspace(*pathStart)) pathStart++; // skip spaces between '=' and the start of the path
-          char *pathEnd = strchr(pathStart, '\n');
-          size_t pathLen;
-          if (pathEnd != NULL) pathLen = pathEnd - pathStart;
-          else // store_path= is the last line and there's no newline at the end of the file
-            pathLen = strnlen(pathStart, PATH_MAX);
-          // save path
-          strncpy(kanshiConfigPath, pathStart, pathLen);
-        } else
-          ; // store_path was not followed by an equal sign on this line
-      } else
-        ; // this line does not contain store_path
-    }     // reached end of file
-    fclose(wdisplaysFile);
-  } else { // can't open config file
-    #ifdef VERBOSE
-    dprintf(2, "%s:%i:%s(): Can't open %s : ", __FILE__, __LINE__, __func__, wdisplaysPath);
-    perror(NULL);
-    #endif
+  if (store_path != NULL && store_path[0] != '\0') {
+    return g_steal_pointer(&store_path);
   }
-
-  // look for WDISPLAYS_KANSHI_CONFIG
-  {
-    char *envKanshiConf = getenv("WDISPLAYS_KANSHI_CONFIG");
-    if (envKanshiConf != NULL) strncpy(kanshiConfigPath, envKanshiConf, sizeof(kanshiConfigPath));
-    else
-      ;
-  }
-  char *finalPath = strndup(kanshiConfigPath, PATH_MAX);
-  if (finalPath == NULL) {
-    dprintf(2, "%s:%i:%s(): ", __FILE__, __LINE__, __func__);
-    perror("Failed to allocate memory for kanshi config path");
-  }
-  return finalPath;
+  return g_build_filename(config_dir, "kanshi", "config", NULL);
 }
 
 struct profile_line match(char **descriptions, int num, const char *filename) {
@@ -222,7 +175,7 @@ static const char *transform_name(enum wl_output_transform transform) {
 }
 
 int wd_store_config(struct wl_list *outputs) {
-  const char *file_name = wd_get_kanshi_config_file_path();
+  g_autofree char *file_name = get_config_path();
   char tmp_file_name[PATH_MAX];
   sprintf(tmp_file_name, "%s.tmp", file_name);
 
