@@ -2,21 +2,24 @@
 // SPDX-FileCopyrightText: 2024-2025 Shaochang Tan
 // SPDX-FileCopyrightText: 2024-2025 Jason André Charles Gantner
 
-#include "wdisplays.h"
-#include <ctype.h>
-#include <limits.h>
-#include <stdlib.h>
+#include <fnmatch.h>
 #include <string.h>
-#include <wayland-client-protocol.h>
 
-#define MAX_NAME_LENGTH 256
+#include "wdisplays.h"
 
-struct profile_line {
-  int start;
-  int end;
+struct kanshi_directive {
+  char *name;
+  GPtrArray *params;
+  GPtrArray *children;
+  size_t start, name_start, end;
+  size_t criteria_start, criteria_end;
 };
 
-typedef enum { Looking_for_profile, Looking_for_outputs, Found } parser_states;
+struct kanshi_parser {
+  const char *text;
+  size_t pos;
+  int line;
+};
 
 static char *get_config_path(void) {
   const char *env_path = g_getenv("WDISPLAYS_KANSHI_CONFIG");
@@ -44,113 +47,283 @@ static char *get_config_path(void) {
   return g_build_filename(config_dir, "kanshi", "config", NULL);
 }
 
-struct profile_line match(char **descriptions, int num, const char *filename) {
-  struct profile_line matched_profile;
-  matched_profile.start = -1;
-  matched_profile.end   = -1;
-  // -1 means not found
-  FILE *configFile      = fopen(filename, "r");
-  if (configFile == NULL) {
-    dprintf(2, "%s:%i:%s(): Can't open %s : ", __FILE__, __LINE__, __func__, filename);
-    perror(NULL);
-    return matched_profile;
+static void kanshi_directive_free(gpointer data) {
+  struct kanshi_directive *dir = data;
+  g_free(dir->name);
+  g_ptr_array_unref(dir->params);
+  if (dir->children != NULL) {
+    g_ptr_array_unref(dir->children);
   }
-  // buffer to store each line
-  char buffer[LINE_MAX];
-#ifdef VERBOSE
-  char *profileName;
-#endif
-  int profileStartLine = 0; // mark the start line of matched profile
-  int profileEndLine   = 0; // mark the end line of matched profile
+  g_free(dir);
+}
 
-  int lineCount              = 0;                   // current line number
-  uint32_t profileMatchedNum = 0;                   // current number of matched outputs
-  parser_states ps           = Looking_for_profile; // current state of the parser
-  while (ps != Found && fgets(buffer, sizeof(buffer), configFile) != NULL) {
-    lineCount++;
-    switch (ps) {
-      case Found: break; // unreachable code
+static char peek(struct kanshi_parser *parser) {
+  return parser->text[parser->pos];
+}
 
-      case Looking_for_profile:;
-        // check if "profile" keyword is in the line and remember its position
-        char *pstart = strstr(buffer, "profile ");
-        if (pstart != NULL) {
-          #ifdef VERBOSE
-          pstart     += 7;
-          char *pend  = strchr(pstart, '{'); // find the end of the profile name
-          while (isspace(*pend)) pend--;
-          size_t pnsize    = pend - pstart;
-          // use strndup to extract it without being size constrained
-          profileName      = strndup(pstart, pnsize);
-          #endif
-          // record the start line of the profile
-          profileStartLine = lineCount;
-          ps               = Looking_for_outputs;
-        }
+static void skip_blanks(struct kanshi_parser *parser) {
+  while (peek(parser) == ' ' || peek(parser) == '\t') {
+    parser->pos++;
+  }
+}
+
+static void next_line(struct kanshi_parser *parser) {
+  while (peek(parser) != '\0' && peek(parser) != '\n') {
+    parser->pos++;
+  }
+  if (peek(parser) == '\n') {
+    parser->pos++;
+    parser->line++;
+  }
+}
+
+static bool parse_error(struct kanshi_parser *parser, GError **error,
+    const char *message) {
+  g_set_error(error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA,
+      "line %d: %s", parser->line, message);
+  return false;
+}
+
+static bool parse_word(struct kanshi_parser *parser, GString *word,
+    GError **error) {
+  char quote = peek(parser);
+  if (quote == '"' || quote == '\'') {
+    parser->pos++;
+  } else {
+    quote = '\0';
+  }
+  while (true) {
+    char c = peek(parser);
+    if (quote != '\0' && c == quote) {
+      parser->pos++;
+      return true;
+    }
+    if (c == '\0' || c == '\n') {
+      if (quote != '\0') {
+        return parse_error(parser, error, "unterminated quoted string");
+      }
+      return true;
+    }
+    if (quote == '\0' && (c == ' ' || c == '\t')) {
+      return true;
+    }
+    if (quote == '\0' && strchr("\"'{}", c) != NULL) {
+      return parse_error(parser, error, "unexpected character in word");
+    }
+    if (c == '\\' && quote != '\'') {
+      parser->pos++;
+      c = peek(parser);
+      if (c == '\0' || c == '\n') {
+        return parse_error(parser, error, "cannot escape a line break");
+      }
+    }
+    g_string_append_c(word, c);
+    parser->pos++;
+  }
+}
+
+static GPtrArray *parse_block(struct kanshi_parser *parser, bool nested,
+    GError **error);
+
+static struct kanshi_directive *parse_directive(struct kanshi_parser *parser,
+    GError **error) {
+  struct kanshi_directive *dir = g_new0(struct kanshi_directive, 1);
+  dir->params = g_ptr_array_new_with_free_func(g_free);
+  dir->name_start = parser->pos;
+  dir->start = parser->pos;
+  while (dir->start > 0 && (parser->text[dir->start - 1] == ' '
+        || parser->text[dir->start - 1] == '\t')) {
+    dir->start--;
+  }
+  if (dir->start > 0 && parser->text[dir->start - 1] != '\n') {
+    dir->start = dir->name_start;
+  }
+
+  g_autoptr(GString) word = g_string_new(NULL);
+  if (!parse_word(parser, word, error)) {
+    goto err;
+  }
+  dir->name = g_strdup(word->str);
+  skip_blanks(parser);
+
+  while (peek(parser) != '\0' && peek(parser) != '\n') {
+    if (peek(parser) == '{') {
+      parser->pos++;
+      skip_blanks(parser);
+      if (peek(parser) != '\n') {
+        parse_error(parser, error, "expected a line break after '{'");
+        goto err;
+      }
+      next_line(parser);
+      dir->children = parse_block(parser, true, error);
+      if (dir->children == NULL) {
+        goto err;
+      }
+      dir->end = parser->pos;
+      skip_blanks(parser);
+      if (peek(parser) != '\0' && peek(parser) != '\n') {
+        parser->pos = dir->end;
+        return dir;
+      }
+      break;
+    }
+    if (peek(parser) == '}') {
+      parse_error(parser, error, "unexpected '}'");
+      goto err;
+    }
+    size_t param_start = parser->pos;
+    g_string_truncate(word, 0);
+    if (!parse_word(parser, word, error)) {
+      goto err;
+    }
+    if (dir->params->len == 0) {
+      dir->criteria_start = param_start;
+      dir->criteria_end = parser->pos;
+    }
+    g_ptr_array_add(dir->params, g_strdup(word->str));
+    skip_blanks(parser);
+  }
+  next_line(parser);
+  dir->end = parser->pos;
+  return dir;
+
+err:
+  kanshi_directive_free(dir);
+  return NULL;
+}
+
+static GPtrArray *parse_block(struct kanshi_parser *parser, bool nested,
+    GError **error) {
+  GPtrArray *dirs = g_ptr_array_new_with_free_func(kanshi_directive_free);
+  while (true) {
+    skip_blanks(parser);
+    char c = peek(parser);
+    if (c == '\n' || c == '#') {
+      next_line(parser);
+    } else if (c == '\0') {
+      if (nested) {
+        parse_error(parser, error, "expected '}'");
         break;
-
-      case Looking_for_outputs:
-        // check if the profile ends
-        if (buffer[0] == '}') {
-          profileEndLine = lineCount;
-          if (profileMatchedNum == num) ps = Found;
-        } else {
-          char outputName[MAX_NAME_LENGTH];
-          char *trimmedBuffer = buffer;
-          while (isspace(*trimmedBuffer)) {
-            trimmedBuffer++; // skip leading spaces
-          }
-          char tempName[MAX_NAME_LENGTH];
-          int matched_scan = 0;
-
-          // Try quoted format first (legacy): output "Long Description (DP-3)"
-          if (sscanf(trimmedBuffer, "output \"%255[^\"]\"", tempName) == 1) {
-            // Extract output name from parentheses if present: (DP-3) -> DP-3
-            char *paren_start = strrchr(tempName, '(');
-            char *paren_end = strrchr(tempName, ')');
-            if (paren_start && paren_end && paren_end > paren_start) {
-              size_t len = paren_end - paren_start - 1;
-              strncpy(outputName, paren_start + 1, len);
-              outputName[len] = '\0';
-              matched_scan = 1;
-            }
-          } else if (sscanf(trimmedBuffer, "output %99s", outputName) == 1) {
-            // Try unquoted format: output DP-3
-            matched_scan = 1;
-          }
-          
-          if (matched_scan != 1) continue; // Skip unparseable lines
-
-          // check if the output name is in the descriptions
-          bool matched = false;
-          for (int i = 0; descriptions[i] != NULL; i++) {
-            if (strcmp(outputName, descriptions[i]) == 0) {
-              matched = true;
-              profileMatchedNum++;
-              break;
-            }
-          }
-
-          if (!matched) {
-            // if any output is not matched, break
-            profileMatchedNum = 0;
-            ps                = Looking_for_profile;
-          }
-        }
+      }
+      return dirs;
+    } else if (c == '}') {
+      if (!nested) {
+        parse_error(parser, error, "unexpected '}'");
         break;
+      }
+      parser->pos++;
+      return dirs;
+    } else {
+      struct kanshi_directive *dir = parse_directive(parser, error);
+      if (dir == NULL) {
+        break;
+      }
+      g_ptr_array_add(dirs, dir);
     }
   }
-  fclose(configFile);
-  if (ps == Found) {
+  g_ptr_array_unref(dirs);
+  return NULL;
+}
 
-    #ifdef VERBOSE
-    printf("Matched profile:%s\n", profileName);
-    printf("Start line:%d\nEnd line:%d\n", profileStartLine, profileEndLine);
-    #endif
-    matched_profile.start = profileStartLine;
-    matched_profile.end   = profileEndLine;
-  } else dprintf(2, "%s:%i:%s(): Cannot find existing profile to match\n", __FILE__, __LINE__, __func__);
-  return matched_profile;
+static const char *find_param(struct kanshi_directive *dir, const char *key) {
+  for (guint i = 1; i + 1 < dir->params->len; i++) {
+    if (strcmp(g_ptr_array_index(dir->params, i), key) == 0) {
+      return g_ptr_array_index(dir->params, i + 1);
+    }
+  }
+  for (guint i = 0; dir->children != NULL && i < dir->children->len; i++) {
+    struct kanshi_directive *child = g_ptr_array_index(dir->children, i);
+    if (strcmp(child->name, key) == 0 && child->params->len > 0) {
+      return g_ptr_array_index(child->params, 0);
+    }
+  }
+  return NULL;
+}
+
+static bool is_output(struct kanshi_directive *dir) {
+  return strcmp(dir->name, "output") == 0 && dir->params->len > 0;
+}
+
+static char *head_identifier(struct wd_head *head) {
+  return g_strdup_printf("%s %s %s",
+      head->make != NULL ? head->make : "Unknown",
+      head->model != NULL ? head->model : "Unknown",
+      head->serial_number != NULL ? head->serial_number : "Unknown");
+}
+
+static bool criteria_match(const char *criteria, struct wd_head *head) {
+  g_autofree char *identifier = head_identifier(head);
+  return strcmp(criteria, "*") == 0 || strcmp(criteria, head->name) == 0
+    || fnmatch(criteria, identifier, 0) == 0;
+}
+
+static const char *resolve_alias(GPtrArray *config, const char *criteria) {
+  if (criteria[0] != '$') {
+    return criteria;
+  }
+  for (guint i = 0; i < config->len; i++) {
+    struct kanshi_directive *dir = g_ptr_array_index(config, i);
+    const char *alias = is_output(dir) ? find_param(dir, "alias") : NULL;
+    if (alias != NULL && strcmp(alias, criteria) == 0) {
+      return g_ptr_array_index(dir->params, 0);
+    }
+  }
+  return NULL;
+}
+
+static bool match_profile(GPtrArray *config, struct kanshi_directive *profile,
+    struct wd_head_config **heads, int num_heads,
+    struct kanshi_directive **matches) {
+  g_autoptr(GPtrArray) outputs = g_ptr_array_new();
+  for (guint i = 0; i < profile->children->len; i++) {
+    struct kanshi_directive *child = g_ptr_array_index(profile->children, i);
+    if (!is_output(child)) {
+      continue;
+    }
+    if (strcmp(g_ptr_array_index(child->params, 0), "*") == 0) {
+      g_ptr_array_add(outputs, child);
+    } else {
+      g_ptr_array_insert(outputs, 0, child);
+    }
+  }
+  if (outputs->len != (guint) num_heads) {
+    return false;
+  }
+
+  memset(matches, 0, num_heads * sizeof(*matches));
+  for (guint i = 0; i < outputs->len; i++) {
+    struct kanshi_directive *output = g_ptr_array_index(outputs, i);
+    const char *criteria = resolve_alias(config,
+        g_ptr_array_index(output->params, 0));
+    if (criteria == NULL) {
+      return false;
+    }
+    int j = 0;
+    while (j < num_heads
+        && (matches[j] != NULL || !criteria_match(criteria, heads[j]->head))) {
+      j++;
+    }
+    if (j == num_heads) {
+      return false;
+    }
+    matches[j] = output;
+  }
+  return true;
+}
+
+static void append_word(GString *str, const char *word) {
+  if (word[0] != '\0' && strpbrk(word, " \t\"'{}\\#") == NULL) {
+    g_string_append(str, word);
+    return;
+  }
+  g_string_append_c(str, '"');
+  for (const char *c = word; *c != '\0'; c++) {
+    if (*c == '"' || *c == '\\') {
+      g_string_append_c(str, '\\');
+    }
+    g_string_append_c(str, *c);
+  }
+  g_string_append_c(str, '"');
 }
 
 static const char *transform_name(enum wl_output_transform transform) {
@@ -174,103 +347,144 @@ static const char *transform_name(enum wl_output_transform transform) {
   }
 }
 
-int wd_store_config(struct wl_list *outputs) {
-  g_autofree char *file_name = get_config_path();
-  char tmp_file_name[PATH_MAX];
-  sprintf(tmp_file_name, "%s.tmp", file_name);
+static bool is_custom_mode(struct wd_head_config *output) {
+  struct wd_mode *mode;
+  wl_list_for_each(mode, &output->head->modes, link) {
+    if (mode->width == output->width && mode->height == output->height
+        && mode->refresh == output->refresh) {
+      return false;
+    }
+  }
+  return true;
+}
 
-  char *descriptions[HEADS_MAX];
-  for (int i = 0; i < HEADS_MAX; i++) descriptions[i] = NULL;
+static void append_settings(GString *str, struct wd_head_config *output,
+    const char *adaptive_sync) {
+  if (!output->enabled) {
+    g_string_append(str, " disable\n");
+    return;
+  }
+  g_string_append(str, " enable mode ");
+  if (is_custom_mode(output)) {
+    g_string_append(str, "--custom ");
+  }
+  g_string_append_printf(str, "%dx%d", output->width, output->height);
+  if (output->refresh > 0) {
+    char refresh[G_ASCII_DTOSTR_BUF_SIZE];
+    g_ascii_formatd(refresh, sizeof(refresh), "%.3f", output->refresh / 1000.);
+    g_string_append_printf(str, "@%sHz", refresh);
+  }
+  char scale[G_ASCII_DTOSTR_BUF_SIZE];
+  g_ascii_dtostr(scale, sizeof(scale), output->scale);
+  g_string_append_printf(str, " position %d,%d scale %s transform %s",
+      output->x, output->y, scale, transform_name(output->transform));
+  if (adaptive_sync != NULL) {
+    g_string_append(str, " adaptive_sync ");
+    append_word(str, adaptive_sync);
+  }
+  g_string_append_c(str, '\n');
+}
 
-  char *outputConfigs[HEADS_MAX];
-  for (int i = 0; i < HEADS_MAX; i++) outputConfigs[i] = (char *)malloc(MAX_NAME_LENGTH);
+static void rewrite_profile(GString *str, const char *text,
+    struct kanshi_directive *profile, struct wd_head_config **heads,
+    int num_heads, struct kanshi_directive **matches) {
+  size_t pos = 0;
+  for (guint i = 0; i < profile->children->len; i++) {
+    struct kanshi_directive *child = g_ptr_array_index(profile->children, i);
+    g_string_append_len(str, text + pos, child->start - pos);
+    pos = child->end;
+    if (!is_output(child)) {
+      g_string_append_len(str, text + child->start, child->end - child->start);
+      continue;
+    }
+    for (int j = 0; j < num_heads; j++) {
+      if (matches[j] == child) {
+        g_string_append_len(str, text + child->start,
+            child->name_start - child->start);
+        g_string_append(str, "output ");
+        g_string_append_len(str, text + child->criteria_start,
+            child->criteria_end - child->criteria_start);
+        append_settings(str, heads[j], find_param(child, "adaptive_sync"));
+      }
+    }
+  }
+  g_string_append(str, text + pos);
+}
 
+static void append_profile(GString *str, struct wd_head_config **heads,
+    int num_heads) {
+  if (str->len > 0 && str->str[str->len - 1] != '\n') {
+    g_string_append_c(str, '\n');
+  }
+  if (str->len > 0) {
+    g_string_append_c(str, '\n');
+  }
+  g_string_append(str, "profile {\n");
+  for (int i = 0; i < num_heads; i++) {
+    g_string_append(str, "\toutput ");
+    append_word(str, heads[i]->head->name);
+    append_settings(str, heads[i], NULL);
+  }
+  g_string_append(str, "}\n");
+}
+
+static char *update_config(const char *text, struct wl_list *outputs,
+    GError **error) {
+  struct wd_head_config *heads[HEADS_MAX];
+  int num_heads = 0;
   struct wd_head_config *output;
-  int description_index = 0;
-  wl_list_for_each(output, outputs, link) {
-    struct wd_head *head = output->head;
-
-    const char *trans_str = transform_name(output->transform);
-
-    if (description_index < HEADS_MAX) {
-      descriptions[description_index] = strdup(head->name);
-      if (!output->enabled) {
-        sprintf(outputConfigs[description_index], "output %s disable", head->name);
-      } else {
-        char refresh[G_ASCII_DTOSTR_BUF_SIZE];
-        char scale[G_ASCII_DTOSTR_BUF_SIZE];
-        g_ascii_formatd(refresh, sizeof(refresh), "%.3f", output->refresh / 1.0e3);
-        g_ascii_dtostr(scale, sizeof(scale), output->scale);
-        sprintf(outputConfigs[description_index], "output %s enable position %d,%d mode %dx%d@%sHz scale %s transform %s",
-                head->name, output->x, output->y, output->width, output->height, refresh, scale, trans_str);
-      }
-      description_index++;
-    } else {
-      dprintf(2, "Too many monitor!\n\t%i is the maximum allowed number", HEADS_MAX);
-      return 1;
+  wl_list_for_each_reverse(output, outputs, link) {
+    if (num_heads == HEADS_MAX) {
+      g_set_error(error, G_IO_ERROR, G_IO_ERROR_FAILED, "too many outputs");
+      return NULL;
     }
+    heads[num_heads++] = output;
+  }
+  if (num_heads == 0) {
+    g_set_error(error, G_IO_ERROR, G_IO_ERROR_FAILED, "no outputs");
+    return NULL;
   }
 
-  int num_of_monitors = description_index;
-
-  struct profile_line matched_profile;
-  matched_profile = match(descriptions, num_of_monitors, file_name);
-
-  if (matched_profile.start == -1) {
-    // append new profile
-    FILE *file = fopen(file_name, "a");
-    if (file == NULL) {
-      dprintf(2, "%s:%i:%s(): Can't open %s : ", __FILE__, __LINE__, __func__, file_name);
-      perror(NULL);
-      return 1;
-    }
-    fprintf(file, "\nprofile {\n");
-    for (int i = 0; i < num_of_monitors; i++) {
-      fprintf(file, "    %s\n", outputConfigs[i]);
-      free(outputConfigs[i]);
-    }
-    fprintf(file, "}");
-    fclose(file);
-  } else if (matched_profile.start < matched_profile.end) {
-    // rewrite corresponding lines
-    FILE *file = fopen(file_name, "r");
-    if (file == NULL) {
-      perror("File open failed.");
-      return 1;
-    }
-    FILE *tmp = fopen(tmp_file_name, "w");
-    if (tmp == NULL) {
-      dprintf(2, "%s:%i:%s(): Can't create %s : ", __FILE__, __LINE__, __func__, tmp_file_name);
-      perror(NULL);
-      fclose(file);
-      return 1;
-    }
-    char _buffer[LINE_MAX];
-    int _line     = 0;
-    int _i_output = 0;
-    while (fgets(_buffer, sizeof(_buffer), file) != NULL) {
-      if (_line >= matched_profile.start && _line < matched_profile.end - 1) {
-        if (_i_output >= num_of_monitors) {
-          dprintf(2, "%s:%i:%s(): too many outputs : %i", __FILE__, __LINE__, __func__, _i_output);
-          fclose(tmp);
-          fclose(file);
-          return 1;
-        }
-        fprintf(tmp, "    %s\n", outputConfigs[_i_output]);
-        free(outputConfigs[_i_output]);
-
-        _i_output++;
-      } else {
-        fprintf(tmp, "%s", _buffer);
-      }
-      _line++;
-    }
-    fclose(file);
-    fclose(tmp);
-
-    remove(file_name);
-    rename(tmp_file_name, file_name);
+  struct kanshi_parser parser = { .text = text, .line = 1 };
+  g_autoptr(GPtrArray) config = parse_block(&parser, false, error);
+  if (config == NULL) {
+    return NULL;
   }
 
+  GString *str = g_string_new(NULL);
+  struct kanshi_directive *matches[HEADS_MAX];
+  for (guint i = 0; i < config->len; i++) {
+    struct kanshi_directive *dir = g_ptr_array_index(config, i);
+    if (strcmp(dir->name, "profile") == 0 && dir->children != NULL
+        && match_profile(config, dir, heads, num_heads, matches)) {
+      rewrite_profile(str, text, dir, heads, num_heads, matches);
+      return g_string_free(str, FALSE);
+    }
+  }
+  g_string_append(str, text);
+  append_profile(str, heads, num_heads);
+  return g_string_free(str, FALSE);
+}
+
+int wd_store_config(struct wl_list *outputs) {
+  g_autofree char *path = get_config_path();
+  g_autofree char *contents = NULL;
+  g_autofree char *updated = NULL;
+  g_autoptr(GError) error = NULL;
+  if (!g_file_get_contents(path, &contents, NULL, &error)) {
+    if (!g_error_matches(error, G_FILE_ERROR, G_FILE_ERROR_NOENT)) {
+      goto err;
+    }
+    g_clear_error(&error);
+    contents = g_strdup("");
+  }
+  updated = update_config(contents, outputs, &error);
+  if (updated == NULL || !g_file_set_contents(path, updated, -1, &error)) {
+    goto err;
+  }
   return 0;
+
+err:
+  fprintf(stderr, "Could not save the kanshi config %s: %s\n", path, error->message);
+  return 1;
 }
