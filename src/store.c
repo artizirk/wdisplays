@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2024-2025 Shaochang Tan
 // SPDX-FileCopyrightText: 2024-2025 Jason André Charles Gantner
 
+#include <errno.h>
 #include <fnmatch.h>
 #include <string.h>
 
@@ -466,6 +467,18 @@ static char *update_config(const char *text, struct wl_list *outputs,
   return g_string_free(str, FALSE);
 }
 
+static bool write_config(const char *path, const char *contents,
+    GError **error) {
+  g_autofree char *dir = g_path_get_dirname(path);
+  if (g_mkdir_with_parents(dir, 0755) != 0) {
+    int err = errno;
+    g_set_error(error, G_FILE_ERROR, g_file_error_from_errno(err),
+        "%s: %s", dir, g_strerror(err));
+    return false;
+  }
+  return g_file_set_contents(path, contents, -1, error);
+}
+
 int wd_store_config(struct wl_list *outputs) {
   g_autofree char *path = get_config_path();
   g_autofree char *contents = NULL;
@@ -479,7 +492,7 @@ int wd_store_config(struct wl_list *outputs) {
     contents = g_strdup("");
   }
   updated = update_config(contents, outputs, &error);
-  if (updated == NULL || !g_file_set_contents(path, updated, -1, &error)) {
+  if (updated == NULL || !write_config(path, updated, &error)) {
     goto err;
   }
   return 0;
