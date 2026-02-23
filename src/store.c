@@ -4,6 +4,7 @@
 
 #include <errno.h>
 #include <fnmatch.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "wdisplays.h"
@@ -469,6 +470,10 @@ static char *update_config(const char *text, struct wl_list *outputs,
 
 static bool write_config(const char *path, const char *contents,
     GError **error) {
+  g_autofree char *real_path = realpath(path, NULL);
+  if (real_path != NULL) {
+    path = real_path;
+  }
   g_autofree char *dir = g_path_get_dirname(path);
   if (g_mkdir_with_parents(dir, 0755) != 0) {
     int err = errno;
