@@ -328,6 +328,35 @@ static void append_word(GString *str, const char *word) {
   g_string_append_c(str, '"');
 }
 
+static void append_criteria(GString *str, struct wd_head_config **heads,
+    int num_heads, struct wd_head *head) {
+  g_autofree char *identifier = head_identifier(head);
+  bool usable = head->make != NULL || head->model != NULL
+    || head->serial_number != NULL;
+  if (identifier[0] == '$' || strchr(identifier, '\n') != NULL) {
+    usable = false;
+  }
+  for (int i = 0; usable && i < num_heads; i++) {
+    g_autofree char *other = head_identifier(heads[i]->head);
+    if (heads[i]->head != head && strcmp(identifier, other) == 0) {
+      usable = false;
+    }
+  }
+  if (!usable) {
+    append_word(str, head->name);
+    return;
+  }
+
+  g_autoptr(GString) pattern = g_string_new(NULL);
+  for (const char *c = identifier; *c != '\0'; c++) {
+    if (strchr("*?[\\", *c) != NULL) {
+      g_string_append_c(pattern, '\\');
+    }
+    g_string_append_c(pattern, *c);
+  }
+  append_word(str, pattern->str);
+}
+
 static const char *transform_name(enum wl_output_transform transform) {
   switch (transform) {
   case WL_OUTPUT_TRANSFORM_90:
@@ -424,7 +453,7 @@ static void append_profile(GString *str, struct wd_head_config **heads,
   g_string_append(str, "profile {\n");
   for (int i = 0; i < num_heads; i++) {
     g_string_append(str, "\toutput ");
-    append_word(str, heads[i]->head->name);
+    append_criteria(str, heads, num_heads, heads[i]->head);
     append_settings(str, heads[i], NULL);
   }
   g_string_append(str, "}\n");
