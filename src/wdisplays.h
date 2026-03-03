@@ -349,7 +349,7 @@ void wd_destroy_overlay(struct wd_output *output);
 /*
  * Updates kanshi config
  */
-int wd_store_config(struct wl_list *outputs);
+void wd_store_config(struct wd_state *state, struct wl_list *outputs);
 #endif
 // SPDX-SnippetEnd
 #endif

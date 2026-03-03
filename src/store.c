@@ -513,7 +513,7 @@ static bool write_config(const char *path, const char *contents,
   return g_file_set_contents(path, contents, -1, error);
 }
 
-int wd_store_config(struct wl_list *outputs) {
+void wd_store_config(struct wd_state *state, struct wl_list *outputs) {
   g_autofree char *path = get_config_path();
   g_autofree char *contents = NULL;
   g_autofree char *updated = NULL;
@@ -529,9 +529,10 @@ int wd_store_config(struct wl_list *outputs) {
   if (updated == NULL || !write_config(path, updated, &error)) {
     goto err;
   }
-  return 0;
+  return;
 
-err:
-  fprintf(stderr, "Could not save the kanshi config %s: %s\n", path, error->message);
-  return 1;
+err:;
+  g_autofree char *message = g_strdup_printf(
+      "Could not save the kanshi config %s: %s", path, error->message);
+  wd_ui_show_error(state, message);
 }
