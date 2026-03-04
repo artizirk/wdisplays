@@ -190,6 +190,7 @@ struct wd_state {
   bool autoapply;
   bool capture;
   bool show_overlay;
+  bool save_kanshi_config;
   double zoom;
 
   unsigned int apply_idle;

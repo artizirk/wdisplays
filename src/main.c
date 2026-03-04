@@ -904,6 +904,17 @@ static void overlay_selected(GSimpleAction *action, GVariant *param, gpointer da
   }
 }
 
+#ifdef WITH_KANSHI
+static void save_kanshi_config_selected(GSimpleAction *action, GVariant *param, gpointer data) {
+  struct wd_state *state = data;
+  if (state->settings != NULL) {
+    g_settings_set_boolean(state->settings, "save-kanshi-config", g_variant_get_boolean(param));
+  }
+  state->save_kanshi_config = g_variant_get_boolean(param);
+  g_simple_action_set_state(action, param);
+}
+#endif
+
 static void window_state_changed(GtkWidget *window, GdkEventWindowState *event,
     gpointer data) {
   struct wd_state *state = data;
@@ -1037,6 +1048,9 @@ static void activate(GtkApplication* app, gpointer user_data) {
     state->autoapply = g_settings_get_boolean(state->settings, "auto-apply");
     state->capture = g_settings_get_boolean(state->settings, "capture-screens");
     state->show_overlay = g_settings_get_boolean(state->settings, "show-overlay");
+#ifdef WITH_KANSHI
+    state->save_kanshi_config = g_settings_get_boolean(state->settings, "save-kanshi-config");
+#endif
   }
 
   action = g_simple_action_new_stateful("auto-apply", NULL,
@@ -1054,10 +1068,20 @@ static void activate(GtkApplication* app, gpointer user_data) {
   g_signal_connect(overlay_action, "change-state", G_CALLBACK(overlay_selected), state);
   g_action_map_add_action(G_ACTION_MAP(main_actions), G_ACTION(overlay_action));
 
+#ifdef WITH_KANSHI
+  action = g_simple_action_new_stateful("save-kanshi-config", NULL,
+      g_variant_new_boolean(state->save_kanshi_config));
+  g_signal_connect(action, "change-state", G_CALLBACK(save_kanshi_config_selected), state);
+  g_action_map_add_action(G_ACTION_MAP(main_actions), G_ACTION(action));
+#endif
+
   GMenu *main_menu = g_menu_new();
   g_menu_append(main_menu, "_Automatically Apply Changes", "app.auto-apply");
   g_menu_append(main_menu, "_Show Screen Contents", "app.capture-screens");
   g_menu_append(main_menu, "_Overlay Screen Names", "app.show-overlay");
+#ifdef WITH_KANSHI
+  g_menu_append(main_menu, "Save to _kanshi Config", "app.save-kanshi-config");
+#endif
   gtk_menu_button_set_menu_model(GTK_MENU_BUTTON(state->menu_button), G_MENU_MODEL(main_menu));
   gtk_menu_button_set_use_popover(GTK_MENU_BUTTON(state->menu_button), false);
 

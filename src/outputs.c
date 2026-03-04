@@ -53,7 +53,9 @@ static void config_handle_succeeded(void *data,
   zwlr_output_configuration_v1_destroy(config);
   wd_ui_apply_done(pending->state, pending->outputs);
 #ifdef WITH_KANSHI
-  wd_store_config(pending->state, pending->outputs);
+  if (pending->state->save_kanshi_config) {
+    wd_store_config(pending->state, pending->outputs);
+  }
 #endif
   destroy_pending(pending);
 }

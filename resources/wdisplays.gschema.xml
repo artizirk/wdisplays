@@ -10,5 +10,8 @@
     <key name="show-overlay" type="b">
       <default>true</default>
     </key>
+    <key name="save-kanshi-config" type="b">
+      <default>false</default>
+    </key>
   </schema>
 </schemalist>
