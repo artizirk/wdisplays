@@ -513,6 +513,18 @@ static bool write_config(const char *path, const char *contents,
   return g_file_set_contents(path, contents, -1, error);
 }
 
+static void reload_kanshi(void) {
+  g_autofree char *kanshictl = g_find_program_in_path("kanshictl");
+  if (kanshictl == NULL) {
+    return;
+  }
+  char *argv[] = { kanshictl, "reload", NULL };
+  g_autoptr(GError) error = NULL;
+  if (!g_spawn_async(NULL, argv, NULL, 0, NULL, NULL, NULL, &error)) {
+    fprintf(stderr, "Failed to run kanshictl: %s\n", error->message);
+  }
+}
+
 void wd_store_config(struct wd_state *state, struct wl_list *outputs) {
   g_autofree char *path = get_config_path();
   g_autofree char *contents = NULL;
@@ -529,6 +541,7 @@ void wd_store_config(struct wd_state *state, struct wl_list *outputs) {
   if (updated == NULL || !write_config(path, updated, &error)) {
     goto err;
   }
+  reload_kanshi();
   return;
 
 err:;
