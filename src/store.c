@@ -25,7 +25,7 @@ struct kanshi_parser {
 
 static char *get_config_path(void) {
   const char *env_path = g_getenv("WDISPLAYS_KANSHI_CONFIG");
-  if (env_path != NULL) {
+  if (env_path != NULL && env_path[0] != '\0') {
     return g_strdup(env_path);
   }
 
