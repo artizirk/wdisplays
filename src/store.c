@@ -4,7 +4,6 @@
 
 #include <errno.h>
 #include <fnmatch.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "wdisplays.h"
@@ -497,12 +496,27 @@ static char *update_config(const char *text, struct wl_list *outputs,
   return g_string_free(str, FALSE);
 }
 
-static bool write_config(const char *path, const char *contents,
-    GError **error) {
-  g_autofree char *real_path = realpath(path, NULL);
-  if (real_path != NULL) {
-    path = real_path;
+static char *resolve_links(const char *path) {
+  char *current = g_strdup(path);
+  for (int i = 0; i < 40; i++) {
+    char *target = g_file_read_link(current, NULL);
+    if (target == NULL) {
+      break;
+    }
+    if (!g_path_is_absolute(target)) {
+      g_autofree char *dir = g_path_get_dirname(current);
+      g_autofree char *relative = target;
+      target = g_build_filename(dir, relative, NULL);
+    }
+    g_free(current);
+    current = target;
   }
+  return current;
+}
+
+static bool write_config(const char *config_path, const char *contents,
+    GError **error) {
+  g_autofree char *path = resolve_links(config_path);
   g_autofree char *dir = g_path_get_dirname(path);
   if (g_mkdir_with_parents(dir, 0755) != 0) {
     int err = errno;
