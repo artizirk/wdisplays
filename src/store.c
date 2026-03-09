@@ -391,23 +391,23 @@ static bool is_custom_mode(struct wd_head_config *output) {
 static void append_settings(GString *str, struct wd_head_config *output,
     const char *adaptive_sync) {
   if (!output->enabled) {
-    g_string_append(str, " disable\n");
-    return;
+    g_string_append(str, " disable");
+  } else {
+    g_string_append(str, " enable mode ");
+    if (is_custom_mode(output)) {
+      g_string_append(str, "--custom ");
+    }
+    g_string_append_printf(str, "%dx%d", output->width, output->height);
+    if (output->refresh > 0) {
+      char refresh[G_ASCII_DTOSTR_BUF_SIZE];
+      g_ascii_formatd(refresh, sizeof(refresh), "%.3f", output->refresh / 1000.);
+      g_string_append_printf(str, "@%sHz", refresh);
+    }
+    char scale[G_ASCII_DTOSTR_BUF_SIZE];
+    g_ascii_dtostr(scale, sizeof(scale), output->scale);
+    g_string_append_printf(str, " position %d,%d scale %s transform %s",
+        output->x, output->y, scale, transform_name(output->transform));
   }
-  g_string_append(str, " enable mode ");
-  if (is_custom_mode(output)) {
-    g_string_append(str, "--custom ");
-  }
-  g_string_append_printf(str, "%dx%d", output->width, output->height);
-  if (output->refresh > 0) {
-    char refresh[G_ASCII_DTOSTR_BUF_SIZE];
-    g_ascii_formatd(refresh, sizeof(refresh), "%.3f", output->refresh / 1000.);
-    g_string_append_printf(str, "@%sHz", refresh);
-  }
-  char scale[G_ASCII_DTOSTR_BUF_SIZE];
-  g_ascii_dtostr(scale, sizeof(scale), output->scale);
-  g_string_append_printf(str, " position %d,%d scale %s transform %s",
-      output->x, output->y, scale, transform_name(output->transform));
   if (adaptive_sync != NULL) {
     g_string_append(str, " adaptive_sync ");
     append_word(str, adaptive_sync);
