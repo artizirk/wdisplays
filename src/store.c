@@ -415,6 +415,19 @@ static void append_settings(GString *str, struct wd_head_config *output,
   g_string_append_c(str, '\n');
 }
 
+static void append_comments(GString *str, const char *text,
+    struct kanshi_directive *dir) {
+  const char *end = text + dir->end;
+  const char *line = strchr(text + dir->name_start, '\n');
+  while (line != NULL && ++line < end) {
+    const char *next = strchr(line, '\n');
+    if (line[strspn(line, " \t")] == '#') {
+      g_string_append_len(str, line, (next != NULL ? next + 1 : end) - line);
+    }
+    line = next;
+  }
+}
+
 static void rewrite_profile(GString *str, const char *text,
     struct kanshi_directive *profile, struct wd_head_config **heads,
     int num_heads, struct kanshi_directive **matches) {
@@ -429,6 +442,7 @@ static void rewrite_profile(GString *str, const char *text,
     }
     for (int j = 0; j < num_heads; j++) {
       if (matches[j] == child) {
+        append_comments(str, text, child);
         g_string_append_len(str, text + child->start,
             child->name_start - child->start);
         g_string_append(str, "output ");
