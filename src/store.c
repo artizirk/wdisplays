@@ -5,8 +5,17 @@
 #include <errno.h>
 #include <fnmatch.h>
 #include <string.h>
+#include <wordexp.h>
 
 #include "wdisplays.h"
+
+#define INCLUDE_DEPTH_MAX 16
+
+struct kanshi_file {
+  char *path;
+  char *text;
+  GPtrArray *dirs;
+};
 
 struct kanshi_directive {
   char *name;
@@ -14,6 +23,13 @@ struct kanshi_directive {
   GPtrArray *children;
   size_t start, name_start, end;
   size_t criteria_start, criteria_end;
+  struct kanshi_file *file;
+};
+
+struct kanshi_config {
+  GPtrArray *files;
+  GPtrArray *profiles;
+  GPtrArray *outputs;
 };
 
 struct kanshi_parser {
@@ -258,13 +274,14 @@ static bool criteria_match(const char *criteria, struct wd_head *head) {
     || fnmatch(criteria, identifier, 0) == 0;
 }
 
-static const char *resolve_alias(GPtrArray *config, const char *criteria) {
+static const char *resolve_alias(struct kanshi_config *config,
+    const char *criteria) {
   if (criteria[0] != '$') {
     return criteria;
   }
-  for (guint i = 0; i < config->len; i++) {
-    struct kanshi_directive *dir = g_ptr_array_index(config, i);
-    const char *alias = is_output(dir) ? find_param(dir, "alias") : NULL;
+  for (guint i = 0; i < config->outputs->len; i++) {
+    struct kanshi_directive *dir = g_ptr_array_index(config->outputs, i);
+    const char *alias = find_param(dir, "alias");
     if (alias != NULL && strcmp(alias, criteria) == 0) {
       return g_ptr_array_index(dir->params, 0);
     }
@@ -272,7 +289,8 @@ static const char *resolve_alias(GPtrArray *config, const char *criteria) {
   return NULL;
 }
 
-static bool match_profile(GPtrArray *config, struct kanshi_directive *profile,
+static bool match_profile(struct kanshi_config *config,
+    struct kanshi_directive *profile,
     struct wd_head_config **heads, int num_heads,
     struct kanshi_directive **matches) {
   g_autoptr(GPtrArray) outputs = g_ptr_array_new();
@@ -472,8 +490,93 @@ static void append_profile(GString *str, struct wd_head_config **heads,
   g_string_append(str, "}\n");
 }
 
-static char *update_config(const char *text, struct wl_list *outputs,
-    GError **error) {
+static void kanshi_file_free(gpointer data) {
+  struct kanshi_file *file = data;
+  g_free(file->path);
+  g_free(file->text);
+  if (file->dirs != NULL) {
+    g_ptr_array_unref(file->dirs);
+  }
+  g_free(file);
+}
+
+static bool load_file(struct kanshi_config *config, const char *path,
+    bool included, int depth, GError **error);
+
+static bool load_include(struct kanshi_config *config,
+    struct kanshi_directive *dir, int depth, GError **error) {
+  if (dir->params->len != 1) {
+    g_set_error(error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA,
+        "%s: include expects exactly one path", dir->file->path);
+    return false;
+  }
+  const char *pattern = g_ptr_array_index(dir->params, 0);
+  wordexp_t words;
+  int ret = wordexp(pattern, &words, WRDE_NOCMD | WRDE_UNDEF);
+  if (ret != 0) {
+    if (ret == WRDE_NOSPACE) {
+      wordfree(&words);
+    }
+    g_set_error(error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+        "%s: cannot expand include %s", dir->file->path, pattern);
+    return false;
+  }
+  bool ok = true;
+  for (size_t i = 0; ok && i < words.we_wordc; i++) {
+    if (!g_path_is_absolute(words.we_wordv[i])) {
+      g_set_error(error, G_IO_ERROR, G_IO_ERROR_NOT_SUPPORTED,
+          "%s: include %s is relative to the directory kanshi runs in",
+          dir->file->path, words.we_wordv[i]);
+      ok = false;
+    } else {
+      ok = load_file(config, words.we_wordv[i], true, depth + 1, error);
+    }
+  }
+  wordfree(&words);
+  return ok;
+}
+
+static bool load_file(struct kanshi_config *config, const char *path,
+    bool included, int depth, GError **error) {
+  if (depth > INCLUDE_DEPTH_MAX) {
+    g_set_error(error, G_IO_ERROR, G_IO_ERROR_TOO_MANY_LINKS,
+        "%s: includes nested too deeply", path);
+    return false;
+  }
+  struct kanshi_file *file = g_new0(struct kanshi_file, 1);
+  file->path = g_strdup(path);
+  g_ptr_array_add(config->files, file);
+  if (!g_file_get_contents(path, &file->text, NULL, error)) {
+    if (included || !g_error_matches(*error, G_FILE_ERROR, G_FILE_ERROR_NOENT)) {
+      return false;
+    }
+    g_clear_error(error);
+    file->text = g_strdup("");
+  }
+
+  struct kanshi_parser parser = { .text = file->text, .line = 1 };
+  file->dirs = parse_block(&parser, false, error);
+  if (file->dirs == NULL) {
+    g_prefix_error(error, "%s: ", path);
+    return false;
+  }
+  for (guint i = 0; i < file->dirs->len; i++) {
+    struct kanshi_directive *dir = g_ptr_array_index(file->dirs, i);
+    dir->file = file;
+    if (strcmp(dir->name, "profile") == 0 && dir->children != NULL) {
+      g_ptr_array_add(config->profiles, dir);
+    } else if (is_output(dir)) {
+      g_ptr_array_add(config->outputs, dir);
+    } else if (strcmp(dir->name, "include") == 0
+        && !load_include(config, dir, depth, error)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static char *update_config(struct kanshi_config *config,
+    struct wl_list *outputs, struct kanshi_file **file, GError **error) {
   struct wd_head_config *heads[HEADS_MAX];
   int num_heads = 0;
   struct wd_head_config *output;
@@ -489,23 +592,18 @@ static char *update_config(const char *text, struct wl_list *outputs,
     return NULL;
   }
 
-  struct kanshi_parser parser = { .text = text, .line = 1 };
-  g_autoptr(GPtrArray) config = parse_block(&parser, false, error);
-  if (config == NULL) {
-    return NULL;
-  }
-
   GString *str = g_string_new(NULL);
   struct kanshi_directive *matches[HEADS_MAX];
-  for (guint i = 0; i < config->len; i++) {
-    struct kanshi_directive *dir = g_ptr_array_index(config, i);
-    if (strcmp(dir->name, "profile") == 0 && dir->children != NULL
-        && match_profile(config, dir, heads, num_heads, matches)) {
-      rewrite_profile(str, text, dir, heads, num_heads, matches);
+  for (guint i = 0; i < config->profiles->len; i++) {
+    struct kanshi_directive *profile = g_ptr_array_index(config->profiles, i);
+    if (match_profile(config, profile, heads, num_heads, matches)) {
+      *file = profile->file;
+      rewrite_profile(str, (*file)->text, profile, heads, num_heads, matches);
       return g_string_free(str, FALSE);
     }
   }
-  g_string_append(str, text);
+  *file = g_ptr_array_index(config->files, 0);
+  g_string_append(str, (*file)->text);
   append_profile(str, heads, num_heads);
   return g_string_free(str, FALSE);
 }
@@ -555,18 +653,18 @@ static void reload_kanshi(void) {
 
 void wd_store_config(struct wd_state *state, struct wl_list *outputs) {
   g_autofree char *path = get_config_path();
-  g_autofree char *contents = NULL;
+  g_autoptr(GPtrArray) files = g_ptr_array_new_with_free_func(kanshi_file_free);
+  g_autoptr(GPtrArray) profiles = g_ptr_array_new();
+  g_autoptr(GPtrArray) global_outputs = g_ptr_array_new();
+  struct kanshi_config config = { files, profiles, global_outputs };
+  struct kanshi_file *file = NULL;
   g_autofree char *updated = NULL;
   g_autoptr(GError) error = NULL;
-  if (!g_file_get_contents(path, &contents, NULL, &error)) {
-    if (!g_error_matches(error, G_FILE_ERROR, G_FILE_ERROR_NOENT)) {
-      goto err;
-    }
-    g_clear_error(&error);
-    contents = g_strdup("");
+  if (!load_file(&config, path, false, 0, &error)) {
+    goto err;
   }
-  updated = update_config(contents, outputs, &error);
-  if (updated == NULL || !write_config(path, updated, &error)) {
+  updated = update_config(&config, outputs, &file, &error);
+  if (updated == NULL || !write_config(file->path, updated, &error)) {
     goto err;
   }
   reload_kanshi();
@@ -574,6 +672,6 @@ void wd_store_config(struct wd_state *state, struct wl_list *outputs) {
 
 err:;
   g_autofree char *message = g_strdup_printf(
-      "Could not save the kanshi config %s: %s", path, error->message);
+      "Could not save the kanshi config: %s", error->message);
   wd_ui_show_error(state, message);
 }
