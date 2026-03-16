@@ -44,24 +44,7 @@ static char *get_config_path(void) {
     return g_strdup(env_path);
   }
 
-  const char *config_dir = g_get_user_config_dir();
-  g_autofree char *wdisplays_path = g_build_filename(config_dir, "wdisplays.conf", NULL);
-  g_autofree char *contents = NULL;
-  g_autofree char *store_path = NULL;
-  if (g_file_get_contents(wdisplays_path, &contents, NULL, NULL)) {
-    g_auto(GStrv) lines = g_strsplit(contents, "\n", -1);
-    for (char **line = lines; *line != NULL; line++) {
-      char *value = strchr(*line, '=');
-      if (strstr(*line, "store_path") != NULL && value != NULL) {
-        g_free(store_path);
-        store_path = g_strdup(g_strstrip(value + 1));
-      }
-    }
-  }
-  if (store_path != NULL && store_path[0] != '\0') {
-    return g_steal_pointer(&store_path);
-  }
-  return g_build_filename(config_dir, "kanshi", "config", NULL);
+  return g_build_filename(g_get_user_config_dir(), "kanshi", "config", NULL);
 }
 
 static void kanshi_directive_free(gpointer data) {
