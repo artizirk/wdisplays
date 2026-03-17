@@ -35,6 +35,7 @@ static void noop() {
 struct wd_pending_config {
   struct wd_state *state;
   struct wl_list *outputs;
+  bool manual;
 };
 
 static void destroy_pending(struct wd_pending_config *pending) {
@@ -53,7 +54,7 @@ static void config_handle_succeeded(void *data,
   zwlr_output_configuration_v1_destroy(config);
   wd_ui_apply_done(pending->state, pending->outputs);
 #ifdef WITH_KANSHI
-  if (pending->state->save_kanshi_config) {
+  if (pending->manual && pending->state->save_kanshi_config) {
     wd_store_config(pending->state, pending->outputs);
   }
 #endif
@@ -95,6 +96,7 @@ void wd_apply_state(struct wd_state *state, struct wl_list *new_outputs,
   struct wd_pending_config *pending = calloc(1, sizeof(*pending));
   pending->state = state;
   pending->outputs = new_outputs;
+  pending->manual = state->apply_manual;
 
   zwlr_output_configuration_v1_add_listener(config, &config_listener, pending);
 

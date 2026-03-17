@@ -50,10 +50,12 @@ static gboolean send_apply(gpointer data) {
   struct wl_display *wl_display = gdk_wayland_display_get_wl_display(display);
   wd_apply_state(state, outputs, wl_display);
   state->apply_pending = FALSE;
+  state->apply_manual = false;
   return FALSE;
 }
 
-static void apply_state(struct wd_state *state) {
+static void apply_state(struct wd_state *state, bool manual) {
+  state->apply_manual = state->apply_manual || manual;
   gtk_stack_set_visible_child_name(GTK_STACK(state->header_stack), "title");
   if (!state->autoapply) {
     gtk_style_context_add_class(gtk_widget_get_style_context(state->spinner), "visible");
@@ -300,7 +302,7 @@ static void show_apply(struct wd_state *state) {
   const gchar *page = "title";
   if (has_changes(state)) {
     if (state->autoapply) {
-      apply_state(state);
+      apply_state(state, false);
     } else {
       page = "apply";
     }
@@ -842,7 +844,7 @@ static void cancel_changes(GSimpleAction *action, GVariant *param, gpointer data
 }
 
 static void apply_changes(GSimpleAction *action, GVariant *param, gpointer data) {
-  apply_state(data);
+  apply_state(data, true);
 }
 
 static void info_response(GtkInfoBar *info_bar, gint response_id, gpointer data) {

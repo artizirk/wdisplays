@@ -187,6 +187,7 @@ struct wd_state {
   uint32_t serial;
 
   bool apply_pending;
+  bool apply_manual;
   bool autoapply;
   bool capture;
   bool show_overlay;
