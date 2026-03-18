@@ -405,6 +405,10 @@ void wd_ui_apply_done(struct wd_state *state, struct wl_list *outputs) {
 }
 
 void wd_ui_show_error(struct wd_state *state, const char *message) {
+  if (gtk_widget_in_destruction(gtk_widget_get_toplevel(state->info_bar))) {
+    fprintf(stderr, "%s\n", message);
+    return;
+  }
   gtk_label_set_text(GTK_LABEL(state->info_label), message);
   gtk_widget_show(state->info_bar);
   gtk_info_bar_set_revealed(GTK_INFO_BAR(state->info_bar), TRUE);
@@ -421,6 +425,9 @@ static void cleanup(GtkWidget *window, gpointer data) {
   g_object_unref(state->grabbing_cursor);
   g_object_unref(state->move_cursor);
   g_clear_object(&state->settings);
+#ifdef WITH_KANSHI
+  wd_store_config_if_dirty(state);
+#endif
   wd_state_destroy(state);
 }
 
@@ -866,6 +873,11 @@ static void auto_apply_selected(GSimpleAction *action, GVariant *param, gpointer
   }
   state->autoapply = g_variant_get_boolean(param);
   g_simple_action_set_state(action, param);
+#ifdef WITH_KANSHI
+  if (!state->autoapply) {
+    wd_store_config_if_dirty(state);
+  }
+#endif
 }
 
 static gboolean redraw_canvas(GtkWidget *widget, GdkFrameClock *frame_clock, gpointer data) {
@@ -913,6 +925,7 @@ static void save_kanshi_config_selected(GSimpleAction *action, GVariant *param, 
     g_settings_set_boolean(state->settings, "save-kanshi-config", g_variant_get_boolean(param));
   }
   state->save_kanshi_config = g_variant_get_boolean(param);
+  state->kanshi_dirty = false;
   g_simple_action_set_state(action, param);
 }
 #endif
