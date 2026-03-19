@@ -38,15 +38,37 @@ struct wd_pending_config {
   bool manual;
 };
 
-static void destroy_pending(struct wd_pending_config *pending) {
+static void destroy_outputs(struct wl_list *outputs) {
   struct wd_head_config *output, *tmp;
-  wl_list_for_each_safe(output, tmp, pending->outputs, link) {
+  wl_list_for_each_safe(output, tmp, outputs, link) {
     wl_list_remove(&output->link);
     free(output);
   }
-  free(pending->outputs);
+  free(outputs);
+}
+
+static void destroy_pending(struct wd_pending_config *pending) {
+  if (pending->outputs != NULL) {
+    destroy_outputs(pending->outputs);
+  }
   free(pending);
 }
+
+#ifdef WITH_KANSHI
+void wd_drop_kanshi_snapshot(struct wd_state *state) {
+  if (state->kanshi_snapshot != NULL) {
+    destroy_outputs(state->kanshi_snapshot);
+    state->kanshi_snapshot = NULL;
+  }
+}
+
+void wd_save_kanshi_snapshot(struct wd_state *state) {
+  if (state->kanshi_snapshot != NULL) {
+    wd_store_config(state, state->kanshi_snapshot);
+    wd_drop_kanshi_snapshot(state);
+  }
+}
+#endif
 
 static void config_handle_succeeded(void *data,
     struct zwlr_output_configuration_v1 *config) {
@@ -55,10 +77,13 @@ static void config_handle_succeeded(void *data,
   wd_ui_apply_done(pending->state, pending->outputs);
 #ifdef WITH_KANSHI
   if (pending->state->save_kanshi_config) {
+    wd_drop_kanshi_snapshot(pending->state);
     if (pending->manual) {
       wd_store_config(pending->state, pending->outputs);
+    } else {
+      pending->state->kanshi_snapshot = pending->outputs;
+      pending->outputs = NULL;
     }
-    pending->state->kanshi_dirty = !pending->manual;
   }
 #endif
   destroy_pending(pending);
@@ -491,6 +516,9 @@ static void head_handle_finished(void *data,
     struct zwlr_output_head_v1 *wlr_head) {
   struct wd_head *head = data;
   struct wd_state *state = head->state;
+#ifdef WITH_KANSHI
+  wd_save_kanshi_snapshot(state);
+#endif
   wl_list_remove(&head->link);
   wd_head_destroy(head);
 
@@ -526,6 +554,9 @@ static void output_manager_handle_head(void *data,
     struct zwlr_output_manager_v1 *manager,
     struct zwlr_output_head_v1 *wlr_head) {
   struct wd_state *state = data;
+#ifdef WITH_KANSHI
+  wd_save_kanshi_snapshot(state);
+#endif
 
   struct wd_head *head = calloc(1, sizeof(*head));
   head->state = state;

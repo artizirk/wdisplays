@@ -634,37 +634,6 @@ static void reload_kanshi(void) {
   }
 }
 
-void wd_store_config_if_dirty(struct wd_state *state) {
-  if (!state->kanshi_dirty) {
-    return;
-  }
-  state->kanshi_dirty = false;
-
-  struct wl_list outputs;
-  wl_list_init(&outputs);
-  struct wd_head *head;
-  wl_list_for_each(head, &state->heads, link) {
-    struct wd_head_config *output = g_new0(struct wd_head_config, 1);
-    output->head = head;
-    output->enabled = head->enabled;
-    output->width = head->mode != NULL ? head->mode->width : head->custom_mode.width;
-    output->height = head->mode != NULL ? head->mode->height : head->custom_mode.height;
-    output->refresh = head->mode != NULL ? head->mode->refresh : head->custom_mode.refresh;
-    output->x = head->x;
-    output->y = head->y;
-    output->scale = head->scale;
-    output->transform = head->transform;
-    wl_list_insert(&outputs, &output->link);
-  }
-  wd_store_config(state, &outputs);
-
-  struct wd_head_config *output, *tmp;
-  wl_list_for_each_safe(output, tmp, &outputs, link) {
-    wl_list_remove(&output->link);
-    g_free(output);
-  }
-}
-
 void wd_store_config(struct wd_state *state, struct wl_list *outputs) {
   g_autofree char *path = get_config_path();
   g_autoptr(GPtrArray) files = g_ptr_array_new_with_free_func(kanshi_file_free);

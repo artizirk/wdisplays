@@ -192,7 +192,7 @@ struct wd_state {
   bool capture;
   bool show_overlay;
   bool save_kanshi_config;
-  bool kanshi_dirty;
+  struct wl_list *kanshi_snapshot;
   double zoom;
 
   unsigned int apply_idle;
@@ -355,10 +355,15 @@ void wd_destroy_overlay(struct wd_output *output);
 void wd_store_config(struct wd_state *state, struct wl_list *outputs);
 
 /*
- * Saves the current layout to the kanshi config if auto-apply changed it
- * since the last save.
+ * Saves the layout of the last auto-apply to the kanshi config, unless it
+ * has been saved or dropped already.
  */
-void wd_store_config_if_dirty(struct wd_state *state);
+void wd_save_kanshi_snapshot(struct wd_state *state);
+
+/*
+ * Forgets the layout of the last auto-apply without saving it.
+ */
+void wd_drop_kanshi_snapshot(struct wd_state *state);
 #endif
 // SPDX-SnippetEnd
 #endif

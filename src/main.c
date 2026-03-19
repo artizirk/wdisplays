@@ -426,7 +426,7 @@ static void cleanup(GtkWidget *window, gpointer data) {
   g_object_unref(state->move_cursor);
   g_clear_object(&state->settings);
 #ifdef WITH_KANSHI
-  wd_store_config_if_dirty(state);
+  wd_save_kanshi_snapshot(state);
 #endif
   wd_state_destroy(state);
 }
@@ -875,7 +875,7 @@ static void auto_apply_selected(GSimpleAction *action, GVariant *param, gpointer
   g_simple_action_set_state(action, param);
 #ifdef WITH_KANSHI
   if (!state->autoapply) {
-    wd_store_config_if_dirty(state);
+    wd_save_kanshi_snapshot(state);
   }
 #endif
 }
@@ -925,7 +925,7 @@ static void save_kanshi_config_selected(GSimpleAction *action, GVariant *param, 
     g_settings_set_boolean(state->settings, "save-kanshi-config", g_variant_get_boolean(param));
   }
   state->save_kanshi_config = g_variant_get_boolean(param);
-  state->kanshi_dirty = false;
+  wd_drop_kanshi_snapshot(state);
   g_simple_action_set_state(action, param);
 }
 #endif
