@@ -184,6 +184,7 @@ struct wd_state {
   struct wl_shm *shm;
   struct wl_list heads;
   struct wl_list outputs;
+  struct wl_list pending_configs;
   uint32_t serial;
 
   bool apply_pending;

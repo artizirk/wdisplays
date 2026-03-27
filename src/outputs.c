@@ -35,7 +35,9 @@ static void noop() {
 struct wd_pending_config {
   struct wd_state *state;
   struct wl_list *outputs;
+  struct wl_list link;
   bool manual;
+  bool incomplete;
 };
 
 static void destroy_outputs(struct wl_list *outputs) {
@@ -48,6 +50,7 @@ static void destroy_outputs(struct wl_list *outputs) {
 }
 
 static void destroy_pending(struct wd_pending_config *pending) {
+  wl_list_remove(&pending->link);
   if (pending->outputs != NULL) {
     destroy_outputs(pending->outputs);
   }
@@ -76,7 +79,7 @@ static void config_handle_succeeded(void *data,
   zwlr_output_configuration_v1_destroy(config);
   wd_ui_apply_done(pending->state, pending->outputs);
 #ifdef WITH_KANSHI
-  if (pending->state->save_kanshi_config) {
+  if (pending->state->save_kanshi_config && !pending->incomplete) {
     wd_drop_kanshi_snapshot(pending->state);
     if (pending->manual) {
       wd_store_config(pending->state, pending->outputs);
@@ -125,6 +128,7 @@ void wd_apply_state(struct wd_state *state, struct wl_list *new_outputs,
   pending->state = state;
   pending->outputs = new_outputs;
   pending->manual = state->apply_manual;
+  wl_list_insert(&state->pending_configs, &pending->link);
 
   zwlr_output_configuration_v1_add_listener(config, &config_listener, pending);
 
@@ -515,6 +519,20 @@ static void head_handle_serial_number(void *data,
   head->serial_number = strdup(serial_number);
 }
 
+static void remove_pending_head(struct wd_state *state, struct wd_head *head) {
+  struct wd_pending_config *pending;
+  wl_list_for_each(pending, &state->pending_configs, link) {
+    struct wd_head_config *output, *tmp;
+    wl_list_for_each_safe(output, tmp, pending->outputs, link) {
+      if (output->head == head) {
+        wl_list_remove(&output->link);
+        free(output);
+        pending->incomplete = true;
+      }
+    }
+  }
+}
+
 static void head_handle_finished(void *data,
     struct zwlr_output_head_v1 *wlr_head) {
   struct wd_head *head = data;
@@ -522,6 +540,7 @@ static void head_handle_finished(void *data,
 #ifdef WITH_KANSHI
   wd_save_kanshi_snapshot(state);
 #endif
+  remove_pending_head(state, head);
   wl_list_remove(&head->link);
   wd_head_destroy(head);
 
@@ -732,6 +751,7 @@ struct wd_state *wd_state_create(void) {
   state->show_overlay = true;
   wl_list_init(&state->heads);
   wl_list_init(&state->outputs);
+  wl_list_init(&state->pending_configs);
   wl_list_init(&state->render.heads);
   return state;
 }
