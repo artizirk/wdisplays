@@ -277,6 +277,19 @@ void wd_add_output_management_listener(struct wd_state *state, struct wl_display
  */
 void wd_apply_state(struct wd_state *state, struct wl_list *new_outputs, struct wl_display *display);
 
+#ifdef WITH_KANSHI
+/*
+ * Saves the layout of the last auto-apply to the kanshi config, unless it
+ * has been saved or dropped already.
+ */
+void wd_save_kanshi_snapshot(struct wd_state *state);
+
+/*
+ * Forgets the layout of the last auto-apply without saving it.
+ */
+void wd_drop_kanshi_snapshot(struct wd_state *state);
+#endif
+
 /*
  * Queues capture of the next frame of all screens.
  */
@@ -354,17 +367,6 @@ void wd_destroy_overlay(struct wd_output *output);
  * Updates kanshi config
  */
 void wd_store_config(struct wd_state *state, struct wl_list *outputs);
-
-/*
- * Saves the layout of the last auto-apply to the kanshi config, unless it
- * has been saved or dropped already.
- */
-void wd_save_kanshi_snapshot(struct wd_state *state);
-
-/*
- * Forgets the layout of the last auto-apply without saving it.
- */
-void wd_drop_kanshi_snapshot(struct wd_state *state);
 #endif
 // SPDX-SnippetEnd
 #endif
