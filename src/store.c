@@ -389,6 +389,19 @@ static bool is_custom_mode(struct wd_head_config *output) {
   return true;
 }
 
+static void format_scale(char *buf, size_t size, double scale) {
+  wl_fixed_t fixed = wl_fixed_from_double(scale);
+  scale = wl_fixed_to_double(fixed);
+  for (int digits = 0; digits <= 8; digits++) {
+    char format[8];
+    snprintf(format, sizeof(format), "%%.%df", digits);
+    g_ascii_formatd(buf, size, format, scale);
+    if (wl_fixed_from_double(g_ascii_strtod(buf, NULL)) == fixed) {
+      break;
+    }
+  }
+}
+
 static void append_settings(GString *str, struct wd_head_config *output,
     const char *adaptive_sync) {
   if (!output->enabled) {
@@ -405,7 +418,7 @@ static void append_settings(GString *str, struct wd_head_config *output,
       g_string_append_printf(str, "@%sHz", refresh);
     }
     char scale[G_ASCII_DTOSTR_BUF_SIZE];
-    g_ascii_dtostr(scale, sizeof(scale), output->scale);
+    format_scale(scale, sizeof(scale), output->scale);
     g_string_append_printf(str, " position %d,%d scale %s transform %s",
         output->x, output->y, scale, transform_name(output->transform));
   }
