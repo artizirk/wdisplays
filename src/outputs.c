@@ -310,6 +310,12 @@ static void wd_output_destroy(struct wd_output *output) {
   if (output->state->layer_shell != NULL) {
     wd_destroy_overlay(output);
   }
+  struct wd_head *head;
+  wl_list_for_each(head, &output->state->heads, link) {
+    if (head->output == output) {
+      head->output = NULL;
+    }
+  }
   zxdg_output_v1_destroy(output->xdg_output);
   free(output->name);
   free(output);
