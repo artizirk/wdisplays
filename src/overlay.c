@@ -102,9 +102,6 @@ static void resize(struct wd_output *output) {
 
   struct wl_surface *surface = gdk_wayland_window_get_wl_surface(window);
   wl_surface_commit(surface);
-
-  GdkDisplay *display = gdk_window_get_display(window);
-  wl_display_roundtrip(gdk_wayland_display_get_wl_display(display));
 }
 
 void wd_redraw_overlay(struct wd_output *output) {
@@ -141,6 +138,9 @@ void window_map(GtkWidget *widget, gpointer data) {
       ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT);
 
   resize(output);
+
+  GdkDisplay *display = gdk_window_get_display(window);
+  wl_display_roundtrip(gdk_wayland_display_get_wl_display(display));
 }
 
 gboolean window_draw(GtkWidget *widget, cairo_t *cr, gpointer data) {
