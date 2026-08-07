@@ -66,6 +66,7 @@
         <property name="wrap">True</property>
         <property name="wrap_mode">word-char</property>
         <property name="ellipsize">end</property>
+        <property name="max_width_chars">40</property>
         <property name="xalign">0</property>
       </object>
       <packing>
