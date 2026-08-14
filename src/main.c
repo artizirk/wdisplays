@@ -296,9 +296,7 @@ static void queue_canvas_draw(struct wd_state *state) {
   gtk_gl_area_queue_render(GTK_GL_AREA(state->canvas));
 }
 
-// GTK toplevels on Wayland don't grow to fit new content once mapped, so
-// force a resize whenever a layout change may need more space than the
-// window currently has (https://github.com/artizirk/wdisplays/issues/5).
+/* GTK toplevels on Wayland don't grow to fit new content once mapped */
 static void resize_to_fit(struct wd_state *state) {
   if (state->window == NULL) {
     return;
