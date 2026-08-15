@@ -296,19 +296,20 @@ static void queue_canvas_draw(struct wd_state *state) {
   gtk_gl_area_queue_render(GTK_GL_AREA(state->canvas));
 }
 
-/* GTK toplevels on Wayland don't grow to fit new content once mapped */
+/* GTK toplevels on Wayland don't grow to their natural size once mapped */
 static void resize_to_fit(struct wd_state *state) {
-  if (state->window == NULL) {
+  if (state->window == NULL || !gtk_widget_get_mapped(state->window)) {
     return;
   }
   GtkRequisition natural;
   gtk_widget_get_preferred_size(state->window, NULL, &natural);
-  gint cur_width, cur_height;
-  gtk_window_get_size(GTK_WINDOW(state->window), &cur_width, &cur_height);
-  gint new_width = MAX(cur_width, natural.width);
-  gint new_height = MAX(cur_height, natural.height);
-  if (new_width != cur_width || new_height != cur_height) {
-    gtk_window_resize(GTK_WINDOW(state->window), new_width, new_height);
+  int grow_width = natural.width - gtk_widget_get_allocated_width(state->window);
+  int grow_height = natural.height - gtk_widget_get_allocated_height(state->window);
+  if (grow_width > 0 || grow_height > 0) {
+    int width, height;
+    gtk_window_get_size(GTK_WINDOW(state->window), &width, &height);
+    gtk_window_resize(GTK_WINDOW(state->window),
+        width + MAX(grow_width, 0), height + MAX(grow_height, 0));
   }
 }
 
@@ -322,7 +323,6 @@ static void show_apply(struct wd_state *state) {
     }
   }
   gtk_stack_set_visible_child_name(GTK_STACK(state->header_stack), page);
-  resize_to_fit(state);
 }
 
 static void update_ui(WdHeadForm *form, enum wd_head_fields fields,
