@@ -303,6 +303,12 @@ static void resize_to_fit(struct wd_state *state) {
   }
   GtkRequisition natural;
   gtk_widget_get_preferred_size(state->window, NULL, &natural);
+  bool grew = natural.width > state->window_natural.width
+      || natural.height > state->window_natural.height;
+  state->window_natural = natural;
+  if (!grew) {
+    return;
+  }
   int grow_width = natural.width - gtk_widget_get_allocated_width(state->window);
   int grow_height = natural.height - gtk_widget_get_allocated_height(state->window);
   if (grow_width > 0 || grow_height > 0) {
