@@ -473,6 +473,7 @@ static void head_handle_finished(void *data,
     }
     counter++;
   }
+  wd_ui_reset_heads(state);
 }
 
 static const struct zwlr_output_head_v1_listener head_listener = {
