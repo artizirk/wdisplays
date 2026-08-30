@@ -350,13 +350,18 @@ gboolean wd_head_form_has_changes(WdHeadForm *form, const struct wd_head *head) 
   return FALSE;
 }
 
+static double get_scale(WdHeadFormPrivate *priv) {
+  double scale = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->scale));
+  return wl_fixed_to_double(wl_fixed_from_double(scale));
+}
+
 void wd_head_form_fill_config(WdHeadForm *form, struct wd_head_config *output) {
   g_return_if_fail(form);
   g_return_if_fail(output);
 
   WdHeadFormPrivate *priv = wd_head_form_get_instance_private(form);
   output->enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(priv->enabled));
-  output->scale = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->scale));
+  output->scale = get_scale(priv);
   output->x = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->pos_x));
   output->y = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->pos_y));
   output->width = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->width));
@@ -382,7 +387,7 @@ void wd_head_form_get_dimensions(WdHeadForm *form, WdHeadDimensions *dimensions)
   dimensions->y = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->pos_y));
   dimensions->w = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->width));
   dimensions->h = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->height));
-  dimensions->scale = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->scale));
+  dimensions->scale = get_scale(priv);
   dimensions->rotation_id = g_variant_get_int32(g_action_get_state(priv->rotate_action)) / 90;
   dimensions->flipped = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(priv->flipped));
 }
