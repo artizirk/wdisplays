@@ -125,15 +125,9 @@ void wd_apply_state(struct wd_state *state, struct wl_list *new_outputs,
       zwlr_output_configuration_head_v1_set_custom_mode(config_head,
           output->width, output->height, output->refresh);
     }
-    if (output->enabled != head->enabled || output->x != head->x || output->y != head->y) {
-      zwlr_output_configuration_head_v1_set_position(config_head, output->x, output->y);
-    }
-    if (output->enabled != head->enabled || output->scale != head->scale) {
-      zwlr_output_configuration_head_v1_set_scale(config_head, wl_fixed_from_double(output->scale));
-    }
-    if (output->enabled != head->enabled || output->transform != head->transform) {
-      zwlr_output_configuration_head_v1_set_transform(config_head, output->transform);
-    }
+    zwlr_output_configuration_head_v1_set_position(config_head, output->x, output->y);
+    zwlr_output_configuration_head_v1_set_scale(config_head, wl_fixed_from_double(output->scale));
+    zwlr_output_configuration_head_v1_set_transform(config_head, output->transform);
   }
 
   zwlr_output_configuration_v1_apply(config);
