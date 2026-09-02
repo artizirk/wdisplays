@@ -308,6 +308,12 @@ static void wd_output_destroy(struct wd_output *output) {
   if (output->state->layer_shell != NULL) {
     wd_destroy_overlay(output);
   }
+  struct wd_head *head;
+  wl_list_for_each(head, &output->state->heads, link) {
+    if (head->output == output) {
+      head->output = NULL;
+    }
+  }
   zxdg_output_v1_destroy(output->xdg_output);
   free(output->name);
   free(output);
@@ -676,13 +682,13 @@ void wd_capture_wait(struct wd_state *state, struct wl_display *display) {
 }
 
 void wd_state_destroy(struct wd_state *state) {
-  struct wd_head *head, *head_tmp;
-  wl_list_for_each_safe(head, head_tmp, &state->heads, link) {
-    wd_head_destroy(head);
-  }
   struct wd_output *output, *output_tmp;
   wl_list_for_each_safe(output, output_tmp, &state->outputs, link) {
     wd_output_destroy(output);
+  }
+  struct wd_head *head, *head_tmp;
+  wl_list_for_each_safe(head, head_tmp, &state->heads, link) {
+    wd_head_destroy(head);
   }
   if (state->layer_shell != NULL) {
     zwlr_layer_shell_v1_destroy(state->layer_shell);
