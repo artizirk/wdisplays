@@ -97,7 +97,7 @@ void wd_apply_state(struct wd_state *state, struct wl_list *new_outputs,
   wl_list_for_each(output, new_outputs, link) {
     struct wd_head *head = output->head;
 
-    if (!output->enabled && output->enabled != head->enabled) {
+    if (!output->enabled) {
       zwlr_output_configuration_v1_disable_head(config, head->wlr_head);
       continue;
     }
