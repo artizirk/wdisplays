@@ -366,6 +366,9 @@ static void mode_handle_preferred(void *data,
 static void mode_handle_finished(void *data,
     struct zwlr_output_mode_v1 *wlr_mode) {
   struct wd_mode *mode = data;
+  if (mode->head->mode == mode) {
+    mode->head->mode = NULL;
+  }
   wl_list_remove(&mode->link);
   wd_mode_destroy(mode);
 }
@@ -477,6 +480,7 @@ static void head_handle_finished(void *data,
     }
     counter++;
   }
+  wd_ui_reset_heads(state);
 }
 
 static const struct zwlr_output_head_v1_listener head_listener = {
