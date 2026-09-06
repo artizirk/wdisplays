@@ -302,6 +302,7 @@
                 <style>
                   <class name="suggested-action"/>
                 </style>
+                <accelerator key="Return" signal="clicked" modifiers="GDK_CONTROL_MASK"/>
               </object>
               <packing>
                 <property name="pack_type">end</property>

@@ -301,6 +301,9 @@ static void queue_canvas_draw(struct wd_state *state) {
 }
 
 static void show_apply(struct wd_state *state) {
+  if (!gtk_widget_get_sensitive(state->stack)) {
+    return;
+  }
   const gchar *page = "title";
   if (has_changes(state)) {
     if (state->autoapply) {
