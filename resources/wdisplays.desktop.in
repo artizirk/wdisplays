@@ -10,3 +10,6 @@ Comment=wlroots displays configuration
 Name[it]=Schermi
 GenericName[it]=Impostazioni degli schermi
 Comment[it]=Impostazioni degli schermi per wlroots
+Name[ru]=Экраны
+GenericName[ru]=Настройка экранов
+Comment[ru]=Настройка экранов для wlroots
