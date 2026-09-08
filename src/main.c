@@ -300,6 +300,29 @@ static void queue_canvas_draw(struct wd_state *state) {
   gtk_gl_area_queue_render(GTK_GL_AREA(state->canvas));
 }
 
+/* GTK toplevels on Wayland don't grow to their natural size once mapped */
+static void resize_to_fit(struct wd_state *state) {
+  if (state->window == NULL || !gtk_widget_get_mapped(state->window)) {
+    return;
+  }
+  GtkRequisition natural;
+  gtk_widget_get_preferred_size(state->window, NULL, &natural);
+  bool grew = natural.width > state->window_natural.width
+      || natural.height > state->window_natural.height;
+  state->window_natural = natural;
+  if (!grew) {
+    return;
+  }
+  int grow_width = natural.width - gtk_widget_get_allocated_width(state->window);
+  int grow_height = natural.height - gtk_widget_get_allocated_height(state->window);
+  if (grow_width > 0 || grow_height > 0) {
+    int width, height;
+    gtk_window_get_size(GTK_WINDOW(state->window), &width, &height);
+    gtk_window_resize(GTK_WINDOW(state->window),
+        width + MAX(grow_width, 0), height + MAX(grow_height, 0));
+  }
+}
+
 static void show_apply(struct wd_state *state) {
   if (!gtk_widget_get_sensitive(state->stack)) {
     return;
@@ -357,6 +380,7 @@ void wd_ui_reset_heads(struct wd_state *state) {
   }
   update_canvas_size(state);
   queue_canvas_draw(state);
+  resize_to_fit(state);
 }
 
 void wd_ui_reset_head(const struct wd_head *head, enum wd_head_fields fields) {
@@ -945,6 +969,7 @@ static void activate(GtkApplication* app, gpointer user_data) {
   GtkBuilder *builder = gtk_builder_new_from_resource(
       WDISPLAYS_RESOURCE_PREFIX "/wdisplays.ui");
   GtkWidget *window = GTK_WIDGET(gtk_builder_get_object(builder, "heads_window"));
+  state->window = window;
   state->main_box = GTK_WIDGET(gtk_builder_get_object(builder, "main_box"));
   state->header_stack = GTK_WIDGET(gtk_builder_get_object(builder, "header_stack"));
   state->stack_switcher = GTK_WIDGET(gtk_builder_get_object(builder, "heads_stack_switcher"));

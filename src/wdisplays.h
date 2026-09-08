@@ -200,6 +200,8 @@ struct wd_state {
   bool panning;
   struct wd_point pan_start;
 
+  GtkWidget *window;
+  GtkRequisition window_natural;
   GtkWidget *main_box;
   GtkWidget *header_stack;
   GtkWidget *stack_switcher;
