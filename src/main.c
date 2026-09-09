@@ -126,12 +126,12 @@ static void update_canvas_size(struct wd_state *state) {
       wd_head_form_get_dimensions(form, &dim);
       int h = dim.h;
       int w = dim.w;
-      int x2 = dim.x + w;
-      int y2 = dim.x + h;
       if (dim.scale > 0.) {
         w /= dim.scale;
         h /= dim.scale;
       }
+      int x2 = dim.x + w;
+      int y2 = dim.y + h;
       xmin = MIN(xmin, dim.x);
       xmax = MAX(xmax, x2);
       ymin = MIN(ymin, dim.y);
@@ -648,8 +648,8 @@ static void canvas_drag1_begin(GtkGestureDrag *drag,
     if (mouse_x >= render->x1 && mouse_x < render->x2 &&
         mouse_y >= render->y1 && mouse_y < render->y2) {
       set_clicked_head(state, render);
-      state->drag_start.x = mouse_x;
-      state->drag_start.y = mouse_y;
+      state->drag_start.x = mouse_x + state->render.x_origin + state->render.scroll_x;
+      state->drag_start.y = mouse_y + state->render.y_origin + state->render.scroll_y;
       state->head_drag_start.x = (mouse_x - render->x1) / (render->x2 - render->x1);
       state->head_drag_start.y = (mouse_y - render->y1) / (render->y2 - render->y1);
       break;
@@ -706,10 +706,8 @@ static void canvas_drag1_update(GtkGestureDrag *drag,
     SWAP(int, size.x, size.y);
   }
   struct wd_point tl = { /* top left */
-    .x = (state->drag_start.x + delta_x - state->head_drag_start.x * size.x * state->zoom
-        + state->render.x_origin + state->render.scroll_x) / state->zoom,
-    .y = (state->drag_start.y + delta_y - state->head_drag_start.y * size.y * state->zoom
-        + state->render.y_origin + state->render.scroll_y) / state->zoom
+    .x = (state->drag_start.x + delta_x - state->head_drag_start.x * size.x * state->zoom) / state->zoom,
+    .y = (state->drag_start.y + delta_y - state->head_drag_start.y * size.y * state->zoom) / state->zoom
   };
 
   const struct wd_point br = { /* bottom right */
