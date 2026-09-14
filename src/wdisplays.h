@@ -49,6 +49,7 @@ struct wd_output {
 
   char *name;
   struct wl_list frames;
+  struct wd_frame *spare;
   GtkWidget *overlay_window;
   struct zwlr_layer_surface_v1 *overlay_layer_surface;
 };
@@ -62,8 +63,10 @@ struct wd_frame {
   unsigned stride;
   unsigned width;
   unsigned height;
+  uint32_t format;
   struct wl_shm_pool *pool;
   struct wl_buffer *buffer;
+  uint8_t *data;
   uint8_t *pixels;
   uint64_t tick;
   bool y_invert;
@@ -223,6 +226,8 @@ struct wd_state {
   GdkCursor *move_cursor;
 
   unsigned int canvas_tick;
+  unsigned int capture_timeout;
+  bool capture_due;
   struct wd_gl_data *gl_data;
   struct wd_render_data render;
 };
@@ -282,6 +287,11 @@ void wd_capture_frame(struct wd_state *state);
  * Blocks until all captures are finished.
  */
 void wd_capture_wait(struct wd_state *state, struct wl_display *display);
+
+/*
+ * Frees all captured frames and their buffers.
+ */
+void wd_capture_release(struct wd_state *state);
 
 /*
  * Updates the UI stack of all heads. Does not update individual head forms.
