@@ -48,3 +48,11 @@ install_data(
       output: '@0@.desktop'.format(meson.project_name()),
       configuration: conf),
     install_dir: get_option('datadir') / 'applications')
+
+install_data('wdisplays.gschema.xml',
+  rename: '@0@.gschema.xml'.format(meson.project_name()),
+  install_dir: get_option('datadir') / 'glib-2.0' / 'schemas')
+
+gnome.post_install(
+  glib_compile_schemas: true
+)

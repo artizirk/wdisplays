@@ -27,3 +27,7 @@ License: MIT
 Files: protocol/wlr-screencopy-unstable-v1.xml
 Copyright: 2018 Simon Ser
 License: MIT
+
+Files: resources/wdisplays.gschema.xml
+Copyright: 2026 Lauren Lagarde <lauren@lagarde.dev>
+License: MIT

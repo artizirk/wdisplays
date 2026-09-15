@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<schemalist>
+  <schema id="network.cycles.wdisplays" path="/network/cycles/wdisplays/">
+    <key name="auto-apply" type="b">
+      <default>false</default>
+    </key>
+    <key name="capture-screens" type="b">
+      <default>true</default>
+    </key>
+    <key name="show-overlay" type="b">
+      <default>true</default>
+    </key>
+  </schema>
+</schemalist>
