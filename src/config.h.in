@@ -8,4 +8,7 @@
 #define WDISPLAYS_VERSION "@version@"
 #define WDISPLAYS_RESOURCE_PREFIX "@resource_prefix@"
 
+// Features
+#mesondefine WITH_KANSHI
+
 #endif

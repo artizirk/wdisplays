@@ -35,23 +35,60 @@ static void noop() {
 struct wd_pending_config {
   struct wd_state *state;
   struct wl_list *outputs;
+  struct wl_list link;
+  bool manual;
+  bool incomplete;
 };
 
-static void destroy_pending(struct wd_pending_config *pending) {
+static void destroy_outputs(struct wl_list *outputs) {
   struct wd_head_config *output, *tmp;
-  wl_list_for_each_safe(output, tmp, pending->outputs, link) {
+  wl_list_for_each_safe(output, tmp, outputs, link) {
     wl_list_remove(&output->link);
     free(output);
   }
-  free(pending->outputs);
+  free(outputs);
+}
+
+static void destroy_pending(struct wd_pending_config *pending) {
+  wl_list_remove(&pending->link);
+  if (pending->outputs != NULL) {
+    destroy_outputs(pending->outputs);
+  }
   free(pending);
 }
+
+#ifdef WITH_KANSHI
+void wd_drop_kanshi_snapshot(struct wd_state *state) {
+  if (state->kanshi_snapshot != NULL) {
+    destroy_outputs(state->kanshi_snapshot);
+    state->kanshi_snapshot = NULL;
+  }
+}
+
+void wd_save_kanshi_snapshot(struct wd_state *state) {
+  if (state->kanshi_snapshot != NULL) {
+    wd_store_config(state, state->kanshi_snapshot);
+    wd_drop_kanshi_snapshot(state);
+  }
+}
+#endif
 
 static void config_handle_succeeded(void *data,
     struct zwlr_output_configuration_v1 *config) {
   struct wd_pending_config *pending = data;
   zwlr_output_configuration_v1_destroy(config);
   wd_ui_apply_done(pending->state, pending->outputs);
+#ifdef WITH_KANSHI
+  if (pending->state->save_kanshi_config && !pending->incomplete) {
+    wd_drop_kanshi_snapshot(pending->state);
+    if (pending->manual) {
+      wd_store_config(pending->state, pending->outputs);
+    } else {
+      pending->state->kanshi_snapshot = pending->outputs;
+      pending->outputs = NULL;
+    }
+  }
+#endif
   destroy_pending(pending);
 }
 
@@ -90,6 +127,8 @@ void wd_apply_state(struct wd_state *state, struct wl_list *new_outputs,
   struct wd_pending_config *pending = calloc(1, sizeof(*pending));
   pending->state = state;
   pending->outputs = new_outputs;
+  pending->manual = state->apply_manual;
+  wl_list_insert(&state->pending_configs, &pending->link);
 
   zwlr_output_configuration_v1_add_listener(config, &config_listener, pending);
 
@@ -395,6 +434,9 @@ static void wd_head_destroy(struct wd_head *head) {
   zwlr_output_head_v1_destroy(head->wlr_head);
   free(head->name);
   free(head->description);
+  free(head->make);
+  free(head->model);
+  free(head->serial_number);
   free(head);
 }
 
@@ -420,6 +462,9 @@ static void mode_handle_preferred(void *data,
 static void mode_handle_finished(void *data,
     struct zwlr_output_mode_v1 *wlr_mode) {
   struct wd_mode *mode = data;
+#ifdef WITH_KANSHI
+  wd_save_kanshi_snapshot(mode->head->state);
+#endif
   if (mode->head->mode == mode) {
     mode->head->mode = NULL;
   }
@@ -517,10 +562,46 @@ static void head_handle_scale(void *data,
   wd_ui_reset_head(head, WD_FIELD_SCALE);
 }
 
+static void head_handle_make(void *data,
+    struct zwlr_output_head_v1 *wlr_head, const char *make) {
+  struct wd_head *head = data;
+  head->make = strdup(make);
+}
+
+static void head_handle_model(void *data,
+    struct zwlr_output_head_v1 *wlr_head, const char *model) {
+  struct wd_head *head = data;
+  head->model = strdup(model);
+}
+
+static void head_handle_serial_number(void *data,
+    struct zwlr_output_head_v1 *wlr_head, const char *serial_number) {
+  struct wd_head *head = data;
+  head->serial_number = strdup(serial_number);
+}
+
+static void remove_pending_head(struct wd_state *state, struct wd_head *head) {
+  struct wd_pending_config *pending;
+  wl_list_for_each(pending, &state->pending_configs, link) {
+    struct wd_head_config *output, *tmp;
+    wl_list_for_each_safe(output, tmp, pending->outputs, link) {
+      if (output->head == head) {
+        wl_list_remove(&output->link);
+        free(output);
+        pending->incomplete = true;
+      }
+    }
+  }
+}
+
 static void head_handle_finished(void *data,
     struct zwlr_output_head_v1 *wlr_head) {
   struct wd_head *head = data;
   struct wd_state *state = head->state;
+#ifdef WITH_KANSHI
+  wd_save_kanshi_snapshot(state);
+#endif
+  remove_pending_head(state, head);
   wl_list_remove(&head->link);
   wd_head_destroy(head);
 
@@ -548,12 +629,18 @@ static const struct zwlr_output_head_v1_listener head_listener = {
   .transform = head_handle_transform,
   .scale = head_handle_scale,
   .finished = head_handle_finished,
+  .make = head_handle_make,
+  .model = head_handle_model,
+  .serial_number = head_handle_serial_number,
 };
 
 static void output_manager_handle_head(void *data,
     struct zwlr_output_manager_v1 *manager,
     struct zwlr_output_head_v1 *wlr_head) {
   struct wd_state *state = data;
+#ifdef WITH_KANSHI
+  wd_save_kanshi_snapshot(state);
+#endif
 
   struct wd_head *head = calloc(1, sizeof(*head));
   head->state = state;
@@ -596,7 +683,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
 
   if (strcmp(interface, zwlr_output_manager_v1_interface.name) == 0) {
     state->output_manager = wl_registry_bind(registry, name,
-        &zwlr_output_manager_v1_interface, 1);
+        &zwlr_output_manager_v1_interface, MIN(version, 2));
     zwlr_output_manager_v1_add_listener(state->output_manager,
         &output_manager_listener, state);
   } else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
@@ -737,6 +824,7 @@ struct wd_state *wd_state_create(void) {
   state->show_overlay = true;
   wl_list_init(&state->heads);
   wl_list_init(&state->outputs);
+  wl_list_init(&state->pending_configs);
   wl_list_init(&state->render.heads);
   return state;
 }

@@ -55,10 +55,12 @@ static gboolean send_apply(gpointer data) {
   struct wl_display *wl_display = gdk_wayland_display_get_wl_display(display);
   wd_apply_state(state, outputs, wl_display);
   state->apply_pending = FALSE;
+  state->apply_manual = false;
   return FALSE;
 }
 
-static void apply_state(struct wd_state *state) {
+static void apply_state(struct wd_state *state, bool manual) {
+  state->apply_manual = state->apply_manual || manual;
   gtk_stack_set_visible_child_name(GTK_STACK(state->header_stack), "title");
   if (!state->autoapply) {
     gtk_style_context_add_class(gtk_widget_get_style_context(state->spinner), "visible");
@@ -365,7 +367,7 @@ static void show_apply(struct wd_state *state) {
   const gchar *page = "title";
   if (has_changes(state)) {
     if (state->autoapply) {
-      apply_state(state);
+      apply_state(state, false);
     } else {
       page = "apply";
     }
@@ -469,6 +471,10 @@ void wd_ui_apply_done(struct wd_state *state, struct wl_list *outputs) {
 }
 
 void wd_ui_show_error(struct wd_state *state, const char *message) {
+  if (gtk_widget_in_destruction(gtk_widget_get_toplevel(state->info_bar))) {
+    fprintf(stderr, "%s\n", message);
+    return;
+  }
   gtk_label_set_text(GTK_LABEL(state->info_label), message);
   gtk_widget_show(state->info_bar);
   gtk_info_bar_set_revealed(GTK_INFO_BAR(state->info_bar), TRUE);
@@ -487,6 +493,9 @@ static void cleanup(GtkWidget *window, gpointer data) {
   g_object_unref(state->grabbing_cursor);
   g_object_unref(state->move_cursor);
   g_clear_object(&state->settings);
+#ifdef WITH_KANSHI
+  wd_save_kanshi_snapshot(state);
+#endif
   wd_state_destroy(state);
 }
 
@@ -899,7 +908,7 @@ static void cancel_changes(GSimpleAction *action, GVariant *param, gpointer data
 }
 
 static void apply_changes(GSimpleAction *action, GVariant *param, gpointer data) {
-  apply_state(data);
+  apply_state(data, true);
 }
 
 static void info_response(GtkInfoBar *info_bar, gint response_id, gpointer data) {
@@ -921,6 +930,11 @@ static void auto_apply_selected(GSimpleAction *action, GVariant *param, gpointer
   }
   state->autoapply = g_variant_get_boolean(param);
   g_simple_action_set_state(action, param);
+#ifdef WITH_KANSHI
+  if (!state->autoapply) {
+    wd_save_kanshi_snapshot(state);
+  }
+#endif
 }
 
 static gboolean redraw_canvas(GtkWidget *widget, GdkFrameClock *frame_clock, gpointer data) {
@@ -957,6 +971,18 @@ static void overlay_selected(GSimpleAction *action, GVariant *param, gpointer da
     }
   }
 }
+
+#ifdef WITH_KANSHI
+static void save_kanshi_config_selected(GSimpleAction *action, GVariant *param, gpointer data) {
+  struct wd_state *state = data;
+  if (state->settings != NULL) {
+    g_settings_set_boolean(state->settings, "save-kanshi-config", g_variant_get_boolean(param));
+  }
+  state->save_kanshi_config = g_variant_get_boolean(param);
+  wd_drop_kanshi_snapshot(state);
+  g_simple_action_set_state(action, param);
+}
+#endif
 
 static void window_state_changed(GtkWidget *window, GdkEventWindowState *event,
     gpointer data) {
@@ -1150,6 +1176,9 @@ static void activate(GtkApplication* app, gpointer user_data) {
     state->autoapply = g_settings_get_boolean(state->settings, "auto-apply");
     state->capture = g_settings_get_boolean(state->settings, "capture-screens");
     state->show_overlay = g_settings_get_boolean(state->settings, "show-overlay");
+#ifdef WITH_KANSHI
+    state->save_kanshi_config = g_settings_get_boolean(state->settings, "save-kanshi-config");
+#endif
   }
   if (startup->autoapply != -1) {
     state->autoapply = startup->autoapply;
@@ -1177,10 +1206,20 @@ static void activate(GtkApplication* app, gpointer user_data) {
   g_signal_connect(overlay_action, "change-state", G_CALLBACK(overlay_selected), state);
   g_action_map_add_action(G_ACTION_MAP(main_actions), G_ACTION(overlay_action));
 
+#ifdef WITH_KANSHI
+  action = g_simple_action_new_stateful("save-kanshi-config", NULL,
+      g_variant_new_boolean(state->save_kanshi_config));
+  g_signal_connect(action, "change-state", G_CALLBACK(save_kanshi_config_selected), state);
+  g_action_map_add_action(G_ACTION_MAP(main_actions), G_ACTION(action));
+#endif
+
   GMenu *main_menu = g_menu_new();
   g_menu_append(main_menu, "_Automatically Apply Changes", "app.auto-apply");
   g_menu_append(main_menu, "_Show Screen Contents", "app.capture-screens");
   g_menu_append(main_menu, "_Overlay Screen Names", "app.show-overlay");
+#ifdef WITH_KANSHI
+  g_menu_append(main_menu, "Save to _kanshi Config", "app.save-kanshi-config");
+#endif
   gtk_menu_button_set_menu_model(GTK_MENU_BUTTON(state->menu_button), G_MENU_MODEL(main_menu));
   gtk_menu_button_set_use_popover(GTK_MENU_BUTTON(state->menu_button), false);
 

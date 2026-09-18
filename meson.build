@@ -10,6 +10,7 @@ conf = configuration_data({
   'app_id': meson.project_name(),
   'version': meson.project_version(),
   'resource_prefix': '/' / '/'.join(meson.project_name().split('.')),
+  'WITH_KANSHI': get_option('kanshi').allowed(),
 })
 
 subdir('protocol')

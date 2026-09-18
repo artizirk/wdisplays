@@ -108,6 +108,7 @@ struct wd_head {
 
   uint32_t id;
   char *name, *description;
+  char *make, *model, *serial_number;
   int32_t phys_width, phys_height; // mm
   struct wl_list modes;
 
@@ -187,12 +188,16 @@ struct wd_state {
   struct wl_shm *shm;
   struct wl_list heads;
   struct wl_list outputs;
+  struct wl_list pending_configs;
   uint32_t serial;
 
   bool apply_pending;
+  bool apply_manual;
   bool autoapply;
   bool capture;
   bool show_overlay;
+  bool save_kanshi_config;
+  struct wl_list *kanshi_snapshot;
   double zoom;
 
   unsigned int apply_idle;
@@ -280,6 +285,19 @@ void wd_add_output_management_listener(struct wd_state *state, struct wl_display
  */
 void wd_apply_state(struct wd_state *state, struct wl_list *new_outputs, struct wl_display *display);
 
+#ifdef WITH_KANSHI
+/*
+ * Saves the layout of the last auto-apply to the kanshi config, unless it
+ * has been saved or dropped already.
+ */
+void wd_save_kanshi_snapshot(struct wd_state *state);
+
+/*
+ * Forgets the layout of the last auto-apply without saving it.
+ */
+void wd_drop_kanshi_snapshot(struct wd_state *state);
+#endif
+
 /*
  * Queues capture of the next frame of all screens.
  */
@@ -354,4 +372,14 @@ void wd_redraw_overlay(struct wd_output *output);
  */
 void wd_destroy_overlay(struct wd_output *output);
 
+// SPDX-SnippetBegin
+// SPDX-License-Identifier: MIT
+// SPDX-SnippetCopyrightText: 2024-2025 Jason André Charles Gantner
+#ifdef WITH_KANSHI
+/*
+ * Updates kanshi config
+ */
+void wd_store_config(struct wd_state *state, struct wl_list *outputs);
+#endif
+// SPDX-SnippetEnd
 #endif
