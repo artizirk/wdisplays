@@ -1007,6 +1007,7 @@ struct wd_startup_options {
   int autoapply;
   int capture;
   int show_overlay;
+  int save_kanshi_config;
 };
 
 static const GOptionEntry startup_option_entries[] = {
@@ -1016,6 +1017,10 @@ static const GOptionEntry startup_option_entries[] = {
   { "no-preview", 0, 0, G_OPTION_ARG_NONE, NULL, "Do not show screen contents in the preview", NULL },
   { "overlay", 0, 0, G_OPTION_ARG_NONE, NULL, "Overlay screen names", NULL },
   { "no-overlay", 0, 0, G_OPTION_ARG_NONE, NULL, "Do not overlay screen names", NULL },
+#ifdef WITH_KANSHI
+  { "kanshi", 0, 0, G_OPTION_ARG_NONE, NULL, "Save applied layouts to the kanshi config", NULL },
+  { "no-kanshi", 0, 0, G_OPTION_ARG_NONE, NULL, "Do not save layouts to the kanshi config", NULL },
+#endif
   { "version", 0, 0, G_OPTION_ARG_NONE, NULL, "Print the version and exit", NULL },
   { NULL }
 };
@@ -1046,7 +1051,13 @@ static gint handle_local_options(GApplication *app, GVariantDict *options,
       || !read_startup_option(options, "overlay", "no-overlay", &startup->show_overlay)) {
     return 1;
   }
-  if (startup->autoapply != -1 || startup->capture != -1 || startup->show_overlay != -1) {
+#ifdef WITH_KANSHI
+  if (!read_startup_option(options, "kanshi", "no-kanshi", &startup->save_kanshi_config)) {
+    return 1;
+  }
+#endif
+  if (startup->autoapply != -1 || startup->capture != -1 || startup->show_overlay != -1
+      || startup->save_kanshi_config != -1) {
     g_autoptr(GError) error = NULL;
     if (!g_application_register(app, NULL, &error)) {
       fprintf(stderr, "Failed to register: %s\n", error->message);
@@ -1189,7 +1200,13 @@ static void activate(GtkApplication* app, gpointer user_data) {
   if (startup->show_overlay != -1) {
     state->show_overlay = startup->show_overlay;
   }
+#ifdef WITH_KANSHI
+  if (startup->save_kanshi_config != -1) {
+    state->save_kanshi_config = startup->save_kanshi_config;
+  }
+#endif
   startup->autoapply = startup->capture = startup->show_overlay = -1;
+  startup->save_kanshi_config = -1;
 
   action = g_simple_action_new_stateful("auto-apply", NULL,
       g_variant_new_boolean(state->autoapply));
@@ -1267,7 +1284,7 @@ static void activate(GtkApplication* app, gpointer user_data) {
 int main(int argc, char *argv[]) {
   g_setenv("GDK_GL", "gles", FALSE);
   GtkApplication *app = gtk_application_new(WDISPLAYS_APP_ID, G_APPLICATION_DEFAULT_FLAGS);
-  struct wd_startup_options startup = { -1, -1, -1 };
+  struct wd_startup_options startup = { -1, -1, -1, -1 };
   g_signal_connect(app, "activate", G_CALLBACK(activate), &startup);
   g_signal_connect(app, "handle-local-options", G_CALLBACK(handle_local_options), &startup);
   g_application_add_main_option_entries(G_APPLICATION(app), startup_option_entries);
