@@ -41,6 +41,10 @@ static bool has_changes(const struct wd_state *state) {
 static gboolean send_apply(gpointer data) {
   struct wd_state *state = data;
   state->apply_idle = -1;
+  if (!state->apply_manual && !has_changes(state)) {
+    state->apply_pending = FALSE;
+    return FALSE;
+  }
   struct wl_list *outputs = calloc(1, sizeof(*outputs));
   wl_list_init(outputs);
   g_autoptr(GList) forms = gtk_container_get_children(GTK_CONTAINER(state->stack));
