@@ -371,7 +371,9 @@ static void show_apply(struct wd_state *state) {
   const gchar *page = "title";
   if (has_changes(state)) {
     if (state->autoapply) {
-      apply_state(state, false);
+      if (state->clicked == NULL) {
+        apply_state(state, false);
+      }
     } else {
       page = "apply";
     }
@@ -817,6 +819,9 @@ static void canvas_drag1_end(GtkGestureDrag *drag,
   struct wd_state *state = data;
   set_clicked_head(state, NULL);
   update_cursor(state);
+  if (state->autoapply) {
+    show_apply(state);
+  }
 }
 
 static void canvas_drag2_begin(GtkGestureDrag *drag,
