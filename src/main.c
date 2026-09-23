@@ -814,14 +814,19 @@ static void canvas_drag1_update(GtkGestureDrag *drag,
   wd_head_form_set_position(form, round(new_pos.x), round(new_pos.y));
 }
 
+static void release_clicked_head(struct wd_state *state) {
+  bool dragged = state->clicked != NULL;
+  set_clicked_head(state, NULL);
+  if (dragged && state->autoapply) {
+    show_apply(state);
+  }
+}
+
 static void canvas_drag1_end(GtkGestureDrag *drag,
     gdouble mouse_x, gdouble mouse_y, gpointer data) {
   struct wd_state *state = data;
-  set_clicked_head(state, NULL);
+  release_clicked_head(state);
   update_cursor(state);
-  if (state->autoapply) {
-    show_apply(state);
-  }
 }
 
 static void canvas_drag2_begin(GtkGestureDrag *drag,
@@ -864,7 +869,7 @@ static void canvas_enter(GtkEventControllerMotion *controller,
   GdkModifierType mod_state = event->crossing.state;
 
   if (!(mod_state & GDK_BUTTON1_MASK)) {
-    set_clicked_head(state, NULL);
+    release_clicked_head(state);
   }
   if (!(mod_state & GDK_BUTTON2_MASK)) {
     state->panning = FALSE;
