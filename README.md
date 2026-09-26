@@ -2,13 +2,17 @@
 
 [![License: GPL 3.0 or later][license-img]][license-spdx]
 
+This is a maintained fork of [artizirk/wdisplays], which has seen no activity
+since 1.1.3. It collects the open upstream pull requests and fixes on top of
+them; the [changelog](CHANGELOG.md) credits every contributor.
+
 wdisplays is a graphical application for configuring displays in Wayland
 compositors. It borrows some code from [kanshi]. It should work in any
 compositor that implements the wlr-output-management-unstable-v1 protocol.
-Compositors that are known to support the protocol are [Sway] and [Wayfire].
+Compositors that are known to support the protocol are [Sway], [Wayfire] and
+[Hyprland].
 The goal of this project is to allow precise adjustment of display settings in
-kiosks, digital signage, and other elaborate multi-monitor setups.
-
+any multi-monitor setup.
 
 ![Screenshot](wdisplays.png)
 
@@ -36,10 +40,13 @@ Build requirements are:
 - wayland-client
 
 ```sh
-meson build
+meson setup build
 ninja -C build
 sudo ninja -C build install
 ```
+
+Saving to the kanshi config is built in by default; pass `-Dkanshi=disabled`
+to `meson setup` to leave it out.
 
 # Usage
 
@@ -59,6 +66,12 @@ There are some options available by clicking the menu button on the top left:
   Turn off to reduce energy usage.
 - Overlay Screen Names: Shows big names in the corner of all screens for easy
   identification. Disable if they get in the way.
+- Save to kanshi Config: Writes the applied layout to your [kanshi] config.
+  See the FAQ below.
+
+These options are remembered between runs. To override one for a single run,
+start wdisplays with `--auto-apply` or `--no-auto-apply`, `--preview` or
+`--no-preview`, `--overlay` or `--no-overlay`, `--kanshi` or `--no-kanshi`.
 
 # FAQ
 
@@ -73,14 +86,26 @@ file. See man `sway-output`. If you want to have multiple configurations
 depending on the monitors connected, you'll need to use an external program
 like [kanshi] or [way-displays].
 
-When you apply a new change, the setting will be defaultly added to $HOME/.config/kanshi/config,
-if there is already a profile for the same monitors combination, the change will be applied on
-existing one.
-you can add kanshi autostart to your sway config:
+wdisplays can do this for you with kanshi: turn on "Save to kanshi Config" in
+the menu. Apply then writes the layout into the kanshi profile for the
+connected monitors, or adds a new one, and reloads kanshi. With automatic apply
+on, the layout is saved when you turn it off, close wdisplays, or plug or
+unplug a monitor. New profiles name outputs by make, model and serial.
+
+The config is `$XDG_CONFIG_HOME/kanshi/config` (usually
+`~/.config/kanshi/config`), or the file named by `WDISPLAYS_KANSHI_CONFIG`.
+Start kanshi from your compositor config, for Sway:
+
 ```
 exec kanshi
-exec_always kanshictl reload
 ```
+
+### I'm using Hyprland, why does my layout change back?
+
+Hyprland keeps a layout applied by wdisplays only while wdisplays is open. The
+next time it reloads its monitor rules, for example on a hotplug, it goes back
+to the `monitor` rules in your Hyprland config. Put the layout there to keep
+it.
 
 ### How do I add support to my compositor?
 
@@ -92,6 +117,8 @@ implementation on top of tinywl: [tinywl-output-management].
 [way-displays]: https://github.com/alex-courtis/way-displays
 [Sway]: https://swaywm.org
 [Wayfire]: https://wayfire.org
+[Hyprland]: https://hyprland.org
+[artizirk/wdisplays]: https://github.com/artizirk/wdisplays
 [ARandR]: https://christian.amsuess.com/tools/arandr/
 [tinywl-output-management]: https://git.sr.ht/~jf/tinywl-output-management/commit/87a45d89ae0e7975e2a59f84e960380dd2f5ac08
 
