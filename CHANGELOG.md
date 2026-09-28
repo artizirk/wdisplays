@@ -6,6 +6,14 @@ This project tries to adhere to [Semantic Versioning][2].
 
 ## [Unreleased]
 
+### Changed
+
+Use network.cycles.wdisplays as the Wayland app ID, matching the desktop file, so docks and bars find the icon; window rules matching "wdisplays" need updating (Mars-Wave)
+
+### Fixed
+
+Memory leaks while editing outputs, in the screen name overlays and when unplugging monitors (Mars-Wave)
+
 ## [1.3.0] - 2026-09-28
 
 1.2.0 is skipped to avoid clashing with JasonGantner's unreleased 1.2.0.
