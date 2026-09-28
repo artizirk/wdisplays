@@ -1296,6 +1296,8 @@ static void activate(GtkApplication* app, gpointer user_data) {
 // END GLOBAL CALLBACKS
 
 int main(int argc, char *argv[]) {
+  g_set_prgname(WDISPLAYS_APP_ID);
+  g_set_application_name("wdisplays");
   g_setenv("GDK_GL", "gles", FALSE);
   GtkApplication *app = gtk_application_new(WDISPLAYS_APP_ID, G_APPLICATION_DEFAULT_FLAGS);
   struct wd_startup_options startup = { -1, -1, -1, -1 };
