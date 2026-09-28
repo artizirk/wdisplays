@@ -27,9 +27,20 @@ G_DEFINE_TYPE_WITH_CODE(WdGLViewport, wd_gl_viewport, GTK_TYPE_GL_AREA,
     G_ADD_PRIVATE(WdGLViewport)
     G_IMPLEMENT_INTERFACE(GTK_TYPE_SCROLLABLE, NULL))
 
+static void wd_gl_viewport_finalize(GObject *object) {
+  WdGLViewport *viewport = WD_GL_VIEWPORT(object);
+  WdGLViewportPrivate *priv = wd_gl_viewport_get_instance_private(viewport);
+
+  g_clear_object(&priv->hadjustment);
+  g_clear_object(&priv->vadjustment);
+
+  G_OBJECT_CLASS(wd_gl_viewport_parent_class)->finalize(object);
+}
+
 static void wd_gl_viewport_class_init(WdGLViewportClass *class) {
   GObjectClass *gobject_class = G_OBJECT_CLASS(class);
 
+  gobject_class->finalize = wd_gl_viewport_finalize;
   gobject_class->set_property = wd_gl_viewport_set_property;
   gobject_class->get_property = wd_gl_viewport_get_property;
 
