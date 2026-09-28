@@ -420,6 +420,9 @@ static void wd_head_destroy(struct wd_head *head) {
     free(head->render);
     head->render = NULL;
   }
+  if (head->surface != NULL) {
+    cairo_surface_destroy(head->surface);
+  }
   struct wd_mode *mode, *mode_tmp;
   wl_list_for_each_safe(mode, mode_tmp, &head->modes, link) {
     zwlr_output_mode_v1_destroy(mode->wlr_mode);
