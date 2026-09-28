@@ -6,10 +6,9 @@ This project tries to adhere to [Semantic Versioning][2].
 
 ## [Unreleased]
 
-## [1.3.0] - 2026-09-26
+## [1.3.0] - 2026-09-28
 
-First release of this fork, as upstream has seen no activity since 1.1.3.
-1.2.0 is skipped to avoid a clash with JasonGantner's unreleased 1.2.0.
+1.2.0 is skipped to avoid clashing with JasonGantner's unreleased 1.2.0.
 
 ### Added
 
@@ -96,8 +95,8 @@ Update application ID and readme (Jason Francis)
 [1]: https://keepachangelog.com/en/1.0.0/
 [2]: https://semver.org/spec/v2.0.0.html
 
-[Unreleased]: https://github.com/Mars-Wave/wdisplays/compare/1.3.0...HEAD
-[1.3.0]:  https://github.com/Mars-Wave/wdisplays/compare/1.1.3...1.3.0
+[Unreleased]: https://github.com/artizirk/wdisplays/compare/1.3.0...HEAD
+[1.3.0]:  https://github.com/artizirk/wdisplays/compare/1.1.3...1.3.0
 [1.1.3]:  https://github.com/artizirk/wdisplays/compare/1.1.2...1.1.3
 [1.1.2]:  https://github.com/artizirk/wdisplays/compare/1.1.1...1.1.2
 [1.1.1]:  https://github.com/artizirk/wdisplays/compare/1.1...1.1.1

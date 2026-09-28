@@ -2,10 +2,6 @@
 
 [![License: GPL 3.0 or later][license-img]][license-spdx]
 
-This is a maintained fork of [artizirk/wdisplays], which has seen no activity
-since 1.1.3. It collects the open upstream pull requests and fixes on top of
-them; the [changelog](CHANGELOG.md) credits every contributor.
-
 wdisplays is a graphical application for configuring displays in Wayland
 compositors. It borrows some code from [kanshi]. It should work in any
 compositor that implements the wlr-output-management-unstable-v1 protocol.
@@ -118,7 +114,6 @@ implementation on top of tinywl: [tinywl-output-management].
 [Sway]: https://swaywm.org
 [Wayfire]: https://wayfire.org
 [Hyprland]: https://hyprland.org
-[artizirk/wdisplays]: https://github.com/artizirk/wdisplays
 [ARandR]: https://christian.amsuess.com/tools/arandr/
 [tinywl-output-management]: https://git.sr.ht/~jf/tinywl-output-management/commit/87a45d89ae0e7975e2a59f84e960380dd2f5ac08
 
