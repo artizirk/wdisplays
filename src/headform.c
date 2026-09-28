@@ -84,7 +84,7 @@ static void mode_spin_changed(GtkSpinButton *spin_button, gpointer data) {
   WdHeadForm *form = WD_HEAD_FORM(data);
   WdHeadFormPrivate *priv = wd_head_form_get_instance_private(form);
   struct vid_mode mode;
-  GVariant *value = g_action_get_state(priv->mode_action);
+  g_autoptr(GVariant) value = g_action_get_state(priv->mode_action);
   unpack_mode_variant(value, &mode);
   if (strcmp(gtk_widget_get_name(GTK_WIDGET(spin_button)), "width") == 0) {
     mode.width = gtk_spin_button_get_value(spin_button);
@@ -151,6 +151,11 @@ static int32_t get_rotate_value(enum wl_output_transform transform) {
   return 0;
 }
 
+static int32_t get_rotate_state(WdHeadFormPrivate *priv) {
+  g_autoptr(GVariant) state = g_action_get_state(priv->rotate_action);
+  return g_variant_get_int32(state);
+}
+
 static void rotate_selected(GSimpleAction *action, GVariant *param, gpointer data) {
   WdHeadForm *form = data;
   WdHeadFormPrivate *priv = wd_head_form_get_instance_private(form);
@@ -189,7 +194,7 @@ static void wd_head_form_init(WdHeadForm *form) {
   gtk_widget_insert_action_group(priv->mode_button, HEAD_PREFIX, G_ACTION_GROUP(head_actions));
   gtk_widget_insert_action_group(priv->rotate_button, HEAD_PREFIX, G_ACTION_GROUP(head_actions));
 
-  GMenu *rotate_menu = g_menu_new();
+  g_autoptr(GMenu) rotate_menu = g_menu_new();
   g_menu_append(rotate_menu, "Don't Rotate", "head.rotate(0)");
   g_menu_append(rotate_menu, "Rotate 90°", "head.rotate(90)");
   g_menu_append(rotate_menu, "Rotate 180°", "head.rotate(180)");
@@ -202,8 +207,8 @@ static void wd_head_form_init(WdHeadForm *form) {
     G_VARIANT_TYPE_INT32,
     G_VARIANT_TYPE_INT32
   };
-  GSimpleAction *action = g_simple_action_new_stateful("mode",
-      g_variant_type_new_tuple(mode_types, G_N_ELEMENTS(mode_types)),
+  g_autoptr(GVariantType) mode_type = g_variant_type_new_tuple(mode_types, G_N_ELEMENTS(mode_types));
+  GSimpleAction *action = g_simple_action_new_stateful("mode", mode_type,
       create_mode_variant(0, 0, 0));
   g_action_map_add_action(G_ACTION_MAP(head_actions), G_ACTION(action));
   g_signal_connect(action, "change-state", G_CALLBACK(mode_selected), form);
@@ -245,12 +250,12 @@ void wd_head_form_update(WdHeadForm *form, const struct wd_head *head,
   }
 
   if (fields & WD_FIELD_MODE) {
-    GMenu *mode_menu = g_menu_new();
+    g_autoptr(GMenu) mode_menu = g_menu_new();
     struct wd_mode *mode;
     g_autofree gchar *action = g_strdup_printf("%s.%s", HEAD_PREFIX, MODE_PREFIX);
     wl_list_for_each(mode, &head->modes, link) {
       g_autofree gchar *name = g_strdup_printf("%d×%d@%0.3fHz", mode->width, mode->height, mode->refresh / 1000.);
-      GMenuItem *item = g_menu_item_new(name, action);
+      g_autoptr(GMenuItem) item = g_menu_item_new(name, action);
       g_menu_item_set_attribute_value(item, G_MENU_ATTRIBUTE_TARGET,
           create_mode_variant(mode->width, mode->height, mode->refresh));
       g_menu_append_item(mode_menu, item);
@@ -337,7 +342,7 @@ gboolean wd_head_form_has_changes(WdHeadForm *form, const struct wd_head *head) 
   if (r / 1000. != gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->refresh))) {
     return TRUE;
   }
-  if (g_variant_get_int32(g_action_get_state(priv->rotate_action)) != get_rotate_value(head->transform)) {
+  if (get_rotate_state(priv) != get_rotate_value(head->transform)) {
     return TRUE;
   }
   bool flipped = head->transform == WL_OUTPUT_TRANSFORM_FLIPPED
@@ -367,7 +372,7 @@ void wd_head_form_fill_config(WdHeadForm *form, struct wd_head_config *output) {
   output->width = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->width));
   output->height = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->height));
   output->refresh = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->refresh)) * 1000.;
-  int32_t rotate = g_variant_get_int32(g_action_get_state(priv->rotate_action));
+  int32_t rotate = get_rotate_state(priv);
   gboolean flipped = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(priv->flipped));
   switch (rotate) {
     case 0: output->transform = flipped ? WL_OUTPUT_TRANSFORM_FLIPPED : WL_OUTPUT_TRANSFORM_NORMAL; break;
@@ -388,7 +393,7 @@ void wd_head_form_get_dimensions(WdHeadForm *form, WdHeadDimensions *dimensions)
   dimensions->w = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->width));
   dimensions->h = gtk_spin_button_get_value(GTK_SPIN_BUTTON(priv->height));
   dimensions->scale = get_scale(priv);
-  dimensions->rotation_id = g_variant_get_int32(g_action_get_state(priv->rotate_action)) / 90;
+  dimensions->rotation_id = get_rotate_state(priv) / 90;
   dimensions->flipped = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(priv->flipped));
 }
 
