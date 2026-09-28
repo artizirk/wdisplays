@@ -38,10 +38,10 @@ static inline int min(int a, int b) {
 
 static PangoLayout *create_text_layout(struct wd_head *head,
     PangoContext *pango, GtkStyleContext *style) {
-  GtkStyleContext *desc_style = gtk_style_context_new();
+  g_autoptr(GtkStyleContext) desc_style = gtk_style_context_new();
   gtk_style_context_set_screen(desc_style,
       gtk_style_context_get_screen(style));
-  GtkWidgetPath *desc_path = gtk_widget_path_copy(
+  g_autoptr(GtkWidgetPath) desc_path = gtk_widget_path_copy(
       gtk_style_context_get_path(style));
   gtk_widget_path_append_type(desc_path, G_TYPE_NONE);
   gtk_style_context_set_path(desc_style, desc_path);
