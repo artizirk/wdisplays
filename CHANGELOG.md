@@ -9,6 +9,7 @@ This project tries to adhere to [Semantic Versioning][2].
 ### Changed
 
 Use network.cycles.wdisplays as the Wayland app ID, matching the desktop file, so docks and bars find the icon; window rules matching "wdisplays" need updating (Mars-Wave)
+no-op callbacks are typed and not casts (MatthiasKunnen) [#28]
 
 ### Fixed
 
@@ -112,6 +113,7 @@ Update application ID and readme (Jason Francis)
 [1.0]: https://github.com/artizirk/wdisplays/releases/tag/1.0
 
 [#11]: https://github.com/artizirk/wdisplays/pull/11
+[#28]: https://github.com/artizirk/wdisplays/pull/28
 [#33]: https://github.com/artizirk/wdisplays/pull/33
 [#34]: https://github.com/artizirk/wdisplays/pull/34
 [#35]: https://github.com/artizirk/wdisplays/pull/35
