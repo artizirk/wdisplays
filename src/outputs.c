@@ -665,7 +665,8 @@ static void output_manager_handle_done(void *data,
   wd_ui_reset_heads(state);
 }
 
-static void output_manager_handle_finished(void *data, struct zwlr_output_manager_v1 *manager) {
+static void output_manager_handle_finished(void *data,
+    struct zwlr_output_manager_v1 *manager) {
 }
 
 static const struct zwlr_output_manager_v1_listener output_manager_listener = {
@@ -696,7 +697,8 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
   }
 }
 
-static void registry_handle_global_remove(void *data, struct wl_registry *registry, uint32_t name) {
+static void registry_handle_global_remove(void *data, struct wl_registry *registry,
+    uint32_t name) {
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -762,7 +764,9 @@ static void output_name(void *data, struct zxdg_output_v1 *zxdg_output_v1,
 
 static void output_done(void *data, struct zxdg_output_v1 *zxdg_output_v1) {
 }
-static void output_description(void *data, struct zxdg_output_v1 *zxdg_output_v1, const char *description) {
+
+static void output_description(void *data, struct zxdg_output_v1 *zxdg_output_v1,
+    const char *description) {
 }
 
 static const struct zxdg_output_v1_listener output_listener = {
