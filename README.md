@@ -93,7 +93,7 @@ The config is `$XDG_CONFIG_HOME/kanshi/config` (usually
 Start kanshi from your compositor config, for Sway:
 
 ```
-exec kanshi
+exec_always kanshi
 ```
 
 ### I'm using Hyprland, why does my layout change back?
